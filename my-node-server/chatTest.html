@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Real-time Chat Test</title>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #chat {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 300px;
+            overflow-y: scroll;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+        }
+        #message {
+            width: 80%;
+        }
+        #send {
+            width: 15%;
+        }
+        #info {
+            font-size: 0.9em;
+            color: #555;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+<h1>Real-time Chat Test</h1>
+<div id="info">Enter a chat room ID and your user ID to join the chat.</div>
+
+<div>
+    <label for="chatRoomId">Chat Room ID:</label>
+    <input type="text" id="chatRoomId" placeholder="Enter chat room ID" />
+    <label for="userId">User ID:</label>
+    <input type="text" id="userId" placeholder="Enter your user ID" />
+    <button id="joinRoom">Join Room</button>
+</div>
+
+<div id="chat"></div>
+<input id="message" placeholder="Type your message" />
+<button id="send">Send</button>
+
+<script>
+    const socket = io('http://localhost:5003'); // Adjust the port if needed
+    let chatRoomId = '';
+    let userId = '';
+
+    // Join Room
+    document.getElementById('joinRoom').addEventListener('click', () => {
+        chatRoomId = document.getElementById('chatRoomId').value;
+        userId = document.getElementById('userId').value;
+
+        if (chatRoomId && userId) {
+            socket.emit('joinRoom', { chatRoomId, userId });
+            appendMessage(`Joined room ${chatRoomId}`);
+        }
+    });
+
+    // Send Message
+    document.getElementById('send').addEventListener('click', () => {
+        const content = document.getElementById('message').value;
+        if (content && chatRoomId) {
+            socket.emit('sendMessage', {
+                chatRoomId,
+                content
+            });
+            document.getElementById('message').value = '';
+        }
+    });
+
+    // Receive Message
+    socket.on('receiveMessage', ({ senderType, content }) => {
+        appendMessage(`${senderType}: ${content}`);
+    });
+
+    function appendMessage(msg) {
+        const chatDiv = document.getElementById('chat');
+        const msgDiv = document.createElement('div');
+        msgDiv.textContent = msg;
+        chatDiv.appendChild(msgDiv);
+        chatDiv.scrollTop = chatDiv.scrollHeight;
+    }
+</script>
+</body>
+</html>
