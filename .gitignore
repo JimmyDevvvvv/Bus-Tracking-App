@@ -1,0 +1,35 @@
+# Node modules
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Environment variables
+.env
+
+# Dependency directories
+bower_components/
+
+# Build output
+/dist
+/build
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE/editor folders
+.idea/
+.vscode/
+
+# npm package lock files (optional)
+package-lock.json
+yarn.lock
+
+# Testing folders
+coverage/
+
+# Ignore chatTest.html if you don't want to track it
+chatTest.html

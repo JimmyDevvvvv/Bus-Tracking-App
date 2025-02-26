@@ -3,10 +3,11 @@ import http from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import connectDB from './db/db.js';
-import authRoutes from './routes/authRoutes.js';
-import adminRoutes from './routes/Admin.js';
-import driverRoutes from './routes/Driver.js';
-import studentRoutes from './routes/Student.js';
+import authRoutes from './Routes/authRoutes.js';
+import adminRoutes from './Routes/Admin.js';
+import driverRoutes from './Routes/Driver.js';
+import studentRoutes from './Routes/Student.js';
+import busRoutes from './Routes/BusRoutes.js';
 import chatSocket from './socket/chatSocket.js';
 
 dotenv.config();
@@ -35,6 +36,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/driver', driverRoutes);
 app.use('/api/student', studentRoutes);
+app.use('/api/buses', busRoutes);
+
 
 // Initialize chat socket logic
 chatSocket(io);
