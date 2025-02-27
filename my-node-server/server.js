@@ -9,6 +9,8 @@ import driverRoutes from './Routes/Driver.js';
 import studentRoutes from './Routes/Student.js';
 import busRoutes from './Routes/BusRoutes.js';
 import chatSocket from './socket/chatSocket.js';
+import locationRoutes from './Routes/location.js';
+import routeRoutes from './Routes/routes.js';
 
 dotenv.config();
 
@@ -37,7 +39,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/driver', driverRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/buses', busRoutes);
-
+app.use("/api/locations", locationRoutes);
+app.use('/api/routes', routeRoutes);
 
 // Initialize chat socket logic
 chatSocket(io);

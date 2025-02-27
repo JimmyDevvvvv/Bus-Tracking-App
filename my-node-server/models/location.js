@@ -5,13 +5,10 @@ const locationSchema = new mongoose.Schema({
     latitude: { type: Number, required: true },
     longitude: { type: Number, required: true },
     arrived: { type: Boolean, default: false },
-
     bus_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Bus' },
-    driver_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    route_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Route' },
-    
     eta: { type: Number, required: true },
-    etaNext: { type: Number, required: true },
+    //eta to GIU
+
 
 }, { timestamps: true });
 

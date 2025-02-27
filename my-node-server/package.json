@@ -10,7 +10,8 @@
 
   "scripts": {
 
-    "test": "echo \"Error: no test specified\" && exit 1"
+      "start": "node server.js",
+  "dev": "nodemon server.js"
 
   },
 
@@ -30,15 +31,21 @@
 
     "jsonwebtoken": "^9.0.2",
 
+    "mongodb": "^6.13.1",
+
     "mongoose": "^8.10.1",
 
     "nodemailer": "^6.10.0",
 
-    "nodemon": "^3.1.9",
-
     "socket.io": "^4.8.1",
 
     "speakeasy": "^2.0.0"
+
+  },
+
+  "devDependencies": {
+
+    "nodemon": "^3.1.9"
 
   }
 

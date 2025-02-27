@@ -1,5 +1,46 @@
 import Bus from '../models/Bus.js';
 
+import LiveLocation from '../models/LiveLocation.js';
+
+export const  updateBusLocation = async (req, res) => {
+    try {
+        const { bus_id, latitude, longitude } = req.body;
+
+        let location = await LiveLocation.findOne({ bus_id });
+
+        if (location) {
+            location.latitude = latitude;
+            location.longitude = longitude;
+            location.last_updated = new Date();
+        } else {
+            location = new LiveLocation({ bus_id, latitude, longitude });
+        }
+
+        await location.save();
+        return res.status(200).json({ message: "Location updated successfully", location });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const  getBusLocation = async (req, res) => {
+    try {
+        const { bus_id } = req.params;
+
+        const location = await LiveLocation.findOne({ bus_id });
+
+        if (!location) {
+            return res.status(404).json({ message: "Bus location not found" });
+        }
+
+        return res.status(200).json(location);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
 
 export const createBus = async (req, res) => {
   try {
