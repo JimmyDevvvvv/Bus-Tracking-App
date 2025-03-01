@@ -2,9 +2,17 @@
 
 <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"/>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
 <script>
   let map, marker; // global map and marker
+  const busId = "جك ٧٨٧٨"
+  const socket = io("ws://localhost:5003", {
+        transports: ["websocket", "polling"],
+        reconnection: true, // Allow automatic reconnections
+        reconnectionAttempts: 5, // Limit reconnections
+        reconnectionDelay: 2000, // Wait 2s before retrying
+  });
 
   function initMap(latitude, longitude) {
     // initialize map and set view to user's location
@@ -33,6 +41,15 @@
       map.setView([latitude, longitude], 20);
     }
   }
+
+  // connect to bus socket
+  socket.emit('joinBusRoom', { busId , userId: 'user1' });
+
+  // listen for bus location updates
+  socket.on("busLocationUpdate", ({ busId, latitude, longitude }) => {
+    console.log(`Bus ${busId} is at: ${latitude}, ${longitude}`);
+    updateMarker(latitude, longitude);
+  });
 
   if ("geolocation" in navigator) {
     // watch for location changes

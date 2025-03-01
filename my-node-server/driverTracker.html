@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Bus Tracker</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <h2>Driver Bus Tracking</h2>
+    <p>Sharing location...</p>
+
+    <script>
+        const socket = io("ws://localhost:5003", {
+        transports: ["websocket", "polling"],
+        reconnection: true, // Allow automatic reconnections
+        reconnectionAttempts: 5, // Limit reconnections
+        reconnectionDelay: 2000, // Wait 2s before retrying
+        });
+        const busId = "جك ٧٨٧٨";
+        const driverId = "67bf7e83ab0d8e36414ef420";
+
+        socket.emit("joinBusRoom", { busId, userId: driverId });
+
+        function sendLocationUpdate(position) {
+            socket.emit("updateLocation", {
+                busId,
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+            });
+            console.log(`Sent location: ${position.coords.latitude}, ${position.coords.longitude}`);
+        }
+
+        if ("geolocation" in navigator) {
+            navigator.geolocation.watchPosition(sendLocationUpdate, 
+                (error) => console.error("Location error:", error), 
+                { enableHighAccuracy: true, maximumAge: 0 });
+        } else {
+            console.error("Geolocation not supported.");
+        }
+
+        setInterval(() => {
+            navigator.geolocation.getCurrentPosition(sendLocationUpdate, 
+                (error) => console.error("Location error:", error), 
+                { enableHighAccuracy: false, maximumAge: 0 });
+        }, 5000);
+    </script>
+</body>
+</html>

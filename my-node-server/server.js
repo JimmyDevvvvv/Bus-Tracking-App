@@ -8,6 +8,7 @@ import adminRoutes from './routes/Admin.js';
 import driverRoutes from './routes/Driver.js';
 import studentRoutes from './routes/Student.js';
 import chatSocket from './socket/chatSocket.js';
+import busTrackingSocket from './socket/busTrackingSocket.js';
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ app.use('/api/student', studentRoutes);
 
 // Initialize chat socket logic
 chatSocket(io);
+busTrackingSocket(io);
 
 server.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
