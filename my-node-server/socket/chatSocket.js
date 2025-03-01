@@ -18,15 +18,13 @@ const chatSocket = (io) => {
             }
         });
 
-        // Handle sending a message
-        socket.on('sendMessage', async ({ chatRoomId, content }) => {
+         socket.on('sendMessage', async ({ chatRoomId, content }) => {
             const userName = socket.data.userName || 'Anonymous';
             console.log(`Message from ${userName}: ${content}`);
             io.to(chatRoomId).emit('receiveMessage', { senderType: userName, content });
         });
 
-        // Handle user disconnecting
-        socket.on('disconnect', () => {
+         socket.on('disconnect', () => {
             console.log('A user disconnected:', socket.id);
         });
     });

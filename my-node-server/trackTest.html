@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bus Tracking System</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"/>
+
+  <style>
+    #map {
+      height: 500px;
+      width: 100%;
+    }
+    #controls {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Simulated Bus Tracker</h1>
+<p id="location">Waiting for bus location...</p>
+
+<div id="map"></div>
+<div id="controls">
+  <button id="toggleTracking">Toggle Auto-Follow</button>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+<!-- Socket.io -->
+<script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+<script>
+  const map = L.map('map').setView([30.0444, 31.2357], 13); // Default start location
+
+  // Load OpenStreetMap tiles
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  // Bus marker
+  let busMarker = L.marker([30.0444, 31.2357], { draggable: false }).addTo(map).bindPopup("Bus Location");
+
+  // WebSocket connection
+  const socket = io("http://localhost:8000");
+
+  let autoFollow = true; // Auto-follow toggle state
+  let lastPosition = [30.0444, 31.2357]; // Store last position for smooth transition
+
+  // Button to toggle auto-follow
+  document.getElementById("toggleTracking").addEventListener("click", () => {
+    autoFollow = !autoFollow;
+  });
+
+  // Smooth transition function
+  function smoothMove(marker, newLatLng, duration = 1000) {
+    const startLatLng = marker.getLatLng();
+    const startTime = performance.now();
+
+    function animate(currentTime) {
+      const elapsedTime = currentTime - startTime;
+      const progress = Math.min(elapsedTime / duration, 1); // Keep between 0 and 1
+
+      const lat = startLatLng.lat + (newLatLng[0] - startLatLng.lat) * progress;
+      const lng = startLatLng.lng + (newLatLng[1] - startLatLng.lng) * progress;
+
+      marker.setLatLng([lat, lng]);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate); // Continue animation
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+   socket.on("busLocation", (location) => {
+    console.log("Bus Location:", location);
+    document.getElementById("location").innerText =
+            `Bus is at: ${location.name}, Latitude ${location.latitude}, Longitude ${location.longitude}`;
+
+    // Apply intro
+    smoothMove(busMarker, [location.latitude, location.longitude]);
+
+
+    busMarker.setPopupContent(`Bus: ${location.name} (${location.latitude}, ${location.longitude})`);
+
+    if (autoFollow) {
+      map.panTo([location.latitude, location.longitude], { animate: true });
+    }
+
+    lastPosition = [location.latitude, location.longitude];
+  });
+
+  socket.on("connect", () => console.log("Connected to WebSocket server."));
+  socket.on("disconnect", () => console.log("Disconnected from server."));
+</script>
+
+</body>
+</html>
