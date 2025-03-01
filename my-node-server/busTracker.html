@@ -1,0 +1,50 @@
+<div id="map" style="width: 100%; height: 800px;"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"/>
+
+<script>
+  let map, marker; // global map and marker
+
+  function initMap(latitude, longitude) {
+    // initialize map and set view to user's location
+    map = L.map("map").setView([latitude, longitude], 20);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
+    }).addTo(map);
+
+    // add marker for user's initial location
+    marker = L.marker([latitude, longitude]).addTo(map)
+      .bindPopup("You are here")
+      .openPopup();
+  }
+
+  function updatePosition(position) {
+    const { latitude , longitude } = position.coords;
+    console.log("Updated Location:", latitude, longitude);
+
+    if (!map) {
+      // initialize map on first update
+      initMap(latitude, longitude);
+    } else {
+      // ppdate marker position
+      marker.setLatLng([latitude, longitude]);
+      map.setView([latitude, longitude], 20);
+    }
+  }
+
+  if ("geolocation" in navigator) {
+    // watch for location changes
+    navigator.geolocation.watchPosition(
+      updatePosition,
+      (error) => console.error("Error tracking location:", error.message),
+      {
+        enableHighAccuracy: false, // set to false for now to make map smoother and not as precise
+        maximumAge: 0, // do not cache location
+      }
+    );
+  } else {
+    console.error("Geolocation is not supported by this browser.");
+  }
+</script>
