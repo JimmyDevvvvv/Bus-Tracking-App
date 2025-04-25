@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import connectDB from './db/db.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/Admin.js';
-import driverRoutes from './routes/Driver.js';
+import driverRoutes from './Routes/Driver.js';
 import studentRoutes from './routes/Student.js';
 import chatSocket from './socket/chatSocket.js';
 
@@ -20,7 +20,7 @@ const io = new Server(server, {
     }
 });
 
-const PORT = process.env.PORT || 5003;
+const PORT = process.env.PORT || 5035;
 
 // Connect to the database
 connectDB();
