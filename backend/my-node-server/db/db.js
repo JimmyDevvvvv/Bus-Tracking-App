@@ -2,10 +2,14 @@ import mongoose from 'mongoose';
 
 const connectDB = async () => {
     try {
-        const conn = await mongoose.connect(process.env.MONGO_URI);
+        // Check if MONGO_URI is defined, use a fallback if not
+        const uri = process.env.MONGO_URI || 'mongodb://localhost:27017/bus-tracking';
+        console.log('Connecting to MongoDB with URI:', uri);
+        
+        const conn = await mongoose.connect(uri);
         console.log(`MongoDB Connected: ${conn.connection.host}`);
     } catch (error) {
-        console.error(`Error: ${error.message}`);
+        console.error(`MongoDB Connection Error: ${error.message}`);
         process.exit(1);
     }
 };

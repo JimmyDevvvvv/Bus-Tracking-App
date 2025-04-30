@@ -3,15 +3,19 @@
 import { useSidebar } from "@/components/sidebar-provider"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { usePathname } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { Bus, Home, Map, Bell, User, Settings, Menu, LogOut } from "lucide-react"
 import { useState, useEffect } from "react"
+import { AuthStatus } from "@/components/ui/auth-status"
+import { SignOutButton } from "@/components/sign-out-button"
+import { removeToken } from "@/lib/auth"
 
 export function AppSidebar() {
   // Add client-side only rendering
   const [mounted, setMounted] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
 
   // Only access the context after component is mounted on the client
   useEffect(() => {
@@ -54,6 +58,11 @@ export function AppSidebar() {
     },
   ]
 
+  const handleSignOut = () => {
+    removeToken()
+    window.location.href = "/login"
+  }
+
   return (
     <div
       className={cn(
@@ -93,16 +102,21 @@ export function AppSidebar() {
       </div>
 
       <div className="absolute bottom-4 w-full px-3">
-        <Button
-          variant="ghost"
-          className={cn(
-            "flex items-center w-full px-3 py-3 text-sm rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-            !isOpen && "justify-center",
-          )}
-        >
-          <LogOut className="h-5 w-5" />
-          {isOpen && <span className="ml-3">Logout</span>}
-        </Button>
+        {mounted && (
+          isOpen ? (
+            <div className="flex flex-col space-y-2 px-3 py-2">
+              <AuthStatus />
+              <SignOutButton className="w-full justify-start" />
+            </div>
+          ) : (
+            <SignOutButton 
+              variant="ghost" 
+              showIcon={true}
+              size="icon"
+              className="flex items-center w-full justify-center h-10 rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            />
+          )
+        )}
       </div>
     </div>
   )
