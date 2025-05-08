@@ -44,7 +44,20 @@ export const loginUser = async (req, res) => {
         }
 
         const token = generateToken(user);
-        res.status(200).json({ message: 'Login successful', token });
+        
+        // Create a user object without the password and sensitive fields
+        const userResponse = {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role
+        };
+
+        res.status(200).json({ 
+            message: 'Login successful', 
+            token,
+            user: userResponse
+        });
     } catch (error) {
         res.status(400).json({ error: error.message });
     }

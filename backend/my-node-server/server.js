@@ -2,6 +2,7 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
+import cors from 'cors';
 import connectDB from './db/db.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/Admin.js';
@@ -25,7 +26,12 @@ const PORT = process.env.PORT || 5003;
 // Connect to the database
 connectDB();
 
+// Middleware
 app.use(express.json());
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true
+}));
 
 app.get('/', (req, res) => {
     res.send('Hello, World! Sockets are live!');
