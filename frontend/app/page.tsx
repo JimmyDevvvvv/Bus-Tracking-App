@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { motion } from "framer-motion"
 import Link from "next/link"
-import { Search, ArrowRight, Map, Bell, Bus, ChevronDown, LogIn, UserPlus } from "lucide-react"
+import { Search, ArrowRight, Map, Bell, Bus, ChevronDown } from "lucide-react"
 
 export default function Home() {
   const [mounted, setMounted] = useState(false)
@@ -18,22 +18,6 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen overflow-hidden animated-bg">
-      {/* Navigation */}
-      <nav className="absolute top-0 right-0 flex items-center p-6 z-10">
-        <Button asChild variant="ghost" className="mr-2">
-          <Link href="/login">
-            <LogIn className="mr-2 h-4 w-4" />
-            Login
-          </Link>
-        </Button>
-        <Button asChild>
-          <Link href="/register">
-            <UserPlus className="mr-2 h-4 w-4" />
-            Register
-          </Link>
-        </Button>
-      </nav>
-      
       {/* Animated background */}
       <div className="absolute inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-background via-background/90 to-background/80" />
@@ -83,7 +67,7 @@ export default function Home() {
             transition={{ delay: 0.6, duration: 0.8 }}
           >
             <Button asChild size="lg" className="text-lg px-8 h-14 btn-premium">
-              <Link href="/login">
+              <Link href="/dashboard">
                 Get Started
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
