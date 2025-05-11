@@ -226,5 +226,5 @@ For more details on planned enhancements, refer to [objectives.md](objectives.md
 
 ---
 
-**Last Updated:** June 12, 2024  
+**Last Updated:** May 11, 2025  
 **Version:** 2.0.0
