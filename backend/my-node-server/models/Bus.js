@@ -42,6 +42,7 @@ const busSchema = new mongoose.Schema({
     currentStudentCount: { type: Number, default: 0 },
     currentLocation: { type: mongoose.Schema.Types.ObjectId, ref: 'Location' },
     locations: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Location' }],
+    studentsAssigned: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     
     // For real-time tracking
     isOnRoute: { type: Boolean, default: false },
