@@ -233,13 +233,7 @@ export default function Routes() {
 
         <div className={cn("overflow-auto", showMap ? "lg:col-span-2" : "lg:col-span-2")}>          {showMap ? (
             <div className="h-full min-h-[600px]">
-              <Map
-                buses={BUSES_ON_ROUTES}
-                selectedBus={null}
-                setSelectedBus={() => {}}
-                selectedRoute={selectedRoute}
-                stops={selectedRouteStops}
-              />
+              <Map />
             </div>
           ) : (
             selectedRouteData && (
