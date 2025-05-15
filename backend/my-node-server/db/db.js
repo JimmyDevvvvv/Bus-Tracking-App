@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const connectDB = async () => {
     try {
         // Check if MONGO_URI is defined, use a fallback if not
-        const uri = process.env.MONGO_URI || 'mongodb://localhost:27017/bus-tracking';
+        const uri = process.env.MONGO_URI ;
         console.log('Connecting to MongoDB with URI:', uri);
         
         const conn = await mongoose.connect(uri);
