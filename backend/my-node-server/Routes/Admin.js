@@ -1,33 +1,33 @@
 import express from 'express';
-import { 
-    adminAction, 
-    getAllUsers, 
-    updateUser,
-    createUser,
-    getUserById,
-    deleteUser,
-    getAllBuses, 
-    createBus, 
-    updateBus, 
-    deleteBus,
-    getBusById,
-    assignDriverToBus, 
-    getAllReports,
-    getReportById,
-    updateReport,
-    addReportComment,
-    assignReport,
-    getAnalyticsOverview,
-    getAnalyticsUsage,
-    getAnalyticsBuses,
-    getAnalyticsReports,
-    getAnalyticsEngagement,
-    exportAnalyticsReport,
-    getSystemSettings,
-    updateSystemSettings,
-    assignStudentsToBus,
+import {
+  addReportComment,
+  adminAction,
+  assignDriverToBus,
+  assignReport,
+  createBus,
+  createUser,
+  deleteBus,
+  deleteUser,
+  exportAnalyticsReport,
+  getAllBuses,
+  getAllReports,
+  getAllUsers,
+  getAnalyticsBuses,
+  getAnalyticsEngagement,
+  getAnalyticsOverview,
+  getAnalyticsReports,
+  getAnalyticsUsage,
+  getBusById,
+  getReportById,
+  getSystemSettings,
+  getUserById,
+  updateBus,
+  updateReport,
+  updateSystemSettings,
+  updateUser,
 } from '../controllers/Admin.js';
-import { verifyToken, authorizeRoles } from '../middleware/authMiddleware.js';
+import assignStudentsToBus from "../controllers/busController.js"
+import { authorizeRoles, verifyToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -67,10 +67,6 @@ router.get('/analytics/export', verifyToken, authorizeRoles('admin'), exportAnal
 // System Settings
 router.get('/settings', verifyToken, authorizeRoles('admin'), getSystemSettings);
 router.put('/settings', verifyToken, authorizeRoles('admin'), updateSystemSettings);
-router.put(
-  '/bus/:id/assign-students',
-  verifyToken,
-  authorizeRoles('admin'),
-  assignStudentsToBus
-);
+router.put('/bus/:busId/assign-students', verifyToken, authorizeRoles('admin'), assignStudentsToBus);
+
 export default router;

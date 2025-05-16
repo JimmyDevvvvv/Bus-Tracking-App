@@ -53,7 +53,12 @@ const busSchema = new mongoose.Schema({
   driver_id:        { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   studentsAssigned: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   currentStudentCount:{ type: Number, default: 0 },
-  currentLocation:  { type: mongoose.Schema.Types.ObjectId, ref: 'Location' },
+  currentLocation: {
+    latitude: { type: Number },
+    longitude: { type: Number },
+    timestamp: { type: Date }
+  },
+  
   locations:        [{ type: mongoose.Schema.Types.ObjectId, ref: 'Location' }],
 
   // Real-time tracking

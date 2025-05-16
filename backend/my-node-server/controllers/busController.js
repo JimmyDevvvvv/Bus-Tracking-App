@@ -1,4 +1,5 @@
 // controllers/busController.js
+import mongoose from 'mongoose';
 import Bus from '../models/Bus.js';
 import User from '../models/User.js';
 
@@ -37,30 +38,74 @@ export const getRoute = async (req, res) => {
 };
 
 export const assignStudentsToBus = async (req, res) => {
-  const { busId, studentIds } = req.body
-
-  if (!mongoose.Types.ObjectId.isValid(busId) || !Array.isArray(studentIds)) {
-    return res.status(400).json({ success: false, error: 'busId and studentIds required' })
-  }
-
   try {
-    // 1) update Bus.studentsAssigned
+    const { busId } = req.params;
+    const { studentIds } = req.body;
+
+    // Validate inputs
+    if (!mongoose.Types.ObjectId.isValid(busId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid bus ID' 
+      });
+    }
+
+    if (!Array.isArray(studentIds)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'studentIds must be an array' 
+      });
+    }
+
+    // Validate all student IDs
+    const validStudents = await User.find({
+      _id: { $in: studentIds },
+      role: 'student'
+    });
+
+    if (validStudents.length !== studentIds.length) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Some student IDs are invalid or not students' 
+      });
+    }
+
+    // Update the bus with new student assignments
     const bus = await Bus.findByIdAndUpdate(
       busId,
-      { $addToSet: { studentsAssigned: { $each: studentIds } } },
+      { 
+        $set: { 
+          studentsAssigned: studentIds,
+          currentStudentCount: studentIds.length 
+        }
+      },
       { new: true }
-    )
-    if (!bus) return res.status(404).json({ success: false, error: 'Bus not found' })
+    ).populate('studentsAssigned', 'name email');
 
-    // 2) set each User.assignedBusId
+    if (!bus) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Bus not found' 
+      });
+    }
+
+    // Update each student's assignedBusId
     await User.updateMany(
       { _id: { $in: studentIds } },
       { $set: { assignedBusId: busId } }
-    )
+    );
 
-    res.json({ success: true, bus })
+    res.json({ 
+      success: true, 
+      bus 
+    });
   } catch (err) {
-    console.error('assignStudentsToBus error:', err)
-    res.status(500).json({ success: false, error: 'Server error' })
+    console.error('Error assigning students to bus:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to assign students to bus' 
+    });
   }
-}
+};
+
+export default assignStudentsToBus;

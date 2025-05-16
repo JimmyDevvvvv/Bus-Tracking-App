@@ -1,58 +1,44 @@
-// components/BusTracker.tsx
 "use client";
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import { useBusLocation } from '@/lib/useBusLocation';
-import { useEffect, useState } from 'react';
 
-type BusTrackerProps = {
-  busId: string;
-  studentPickup: {
-    latitude: number;
-    longitude: number;
-  };
+import React from "react";
+import { GoogleMap, Marker, Polyline, useJsApiLoader } from "@react-google-maps/api";
+
+const containerStyle = {
+  width: "100%",
+  height: "100%",
+  minHeight: "350px",
+  borderRadius: "0.75rem",
 };
 
-export function BusTracker({ busId, studentPickup }: BusTrackerProps) {
-  // studentPickup = {latitude,longitude}
-  const busLoc = useBusLocation(busId);
-  const [eta, setEta] = useState<string|null>(null);
-
-  // fetch ETA from Google Distance Matrix
-  useEffect(() => {
-    if (busLoc) {
-      const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-      fetch(
-        `https://maps.googleapis.com/maps/api/distancematrix/json?units=metric
-         &origins=${busLoc.latitude},${busLoc.longitude}
-         &destinations=${studentPickup.latitude},${studentPickup.longitude}
-         &key=${key}`
-      )
-      .then(r => r.json())
-      .then(d => {
-        const element = d.rows[0]?.elements[0];
-        if (element?.duration?.text) setEta(element.duration.text);
-      })
-      .catch(console.error);
-    }
-  }, [busLoc, studentPickup]);
-
-  return (
-    <div className="h-96 w-full">
-      <MapContainer
-        center={[studentPickup.latitude, studentPickup.longitude]}
-        zoom={13} style={{ height:'100%', width:'100%' }}>
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        {busLoc && (
-          <Marker position={[busLoc.latitude, busLoc.longitude]}>
-            <Popup>Bus here</Popup>
-          </Marker>
-        )}
-        <Marker position={[studentPickup.latitude, studentPickup.longitude]}>
-          <Popup>Your stop {eta && `(ETA: ${eta})`}</Popup>
-        </Marker>
-      </MapContainer>
-    </div>
-  );
+interface Props {
+  busId: string;
+  busLocation: { latitude: number; longitude: number };
+  studentPickup: { latitude: number; longitude: number };
 }
+
+const BusTrackerGoogle: React.FC<Props> = ({ busId, busLocation, studentPickup }) => {
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!, // Add this to .env
+  });
+
+  const path = [
+    { lat: busLocation.latitude, lng: busLocation.longitude },
+    { lat: studentPickup.latitude, lng: studentPickup.longitude },
+  ];
+
+  return isLoaded ? (
+    <GoogleMap
+      mapContainerStyle={containerStyle}
+      center={path[0]}
+      zoom={14}
+    >
+      <Marker position={path[0]} label="Bus" />
+      <Marker position={path[1]} label="Pickup" />
+      <Polyline path={path} options={{ strokeColor: "#4285F4" }} />
+    </GoogleMap>
+  ) : (
+    <div>Loading map...</div>
+  );
+};
+
+export default BusTrackerGoogle;
