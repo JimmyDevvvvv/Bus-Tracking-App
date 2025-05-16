@@ -5,7 +5,7 @@ import {
     parseUserFromToken, 
     fetchWithAuth, // Use the general fetchWithAuth for base functionality
     API_URL, // Use the central API_URL constant
-    isClient, // Use the central client check utility
+    // isClient, // Use the central client check utility
     isAuthenticated // Use the general authentication check
 } from './auth';
 
@@ -13,6 +13,9 @@ import {
 if (typeof window !== 'undefined') {
   console.log('Admin API URL being used:', API_URL);
 }
+
+// Utility to check if running on the client (browser)
+const isClient = (): boolean => typeof window !== 'undefined';
 
 // Types
 export interface AdminResponse {

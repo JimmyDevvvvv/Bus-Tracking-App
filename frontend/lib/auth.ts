@@ -1,387 +1,327 @@
-import { useRouter } from 'next/navigation';
+// lib/auth.ts
+'use client'
+
+import { useRouter } from 'next/navigation'
 
 // --- Constants ---
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002/api';
-const TOKEN_KEY = 'token';
-const LAST_ACTIVE_KEY = 'lastActive';
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') || 'http://localhost:5002/api'
+const TOKEN_KEY = 'token'
+const LAST_ACTIVE_KEY = 'lastActive'
 
 // Debug log for API URL (client-side only)
 if (typeof window !== 'undefined') {
-  console.log('API URL being used:', API_URL);
+  console.log('API URL being used:', API_URL)
 }
 
 // --- Types ---
 export interface LoginCredentials {
-  email: string;
-  password: string;
-  otp?: string; // Optional: For two-factor authentication
+  email: string
+  password: string
+  otp?: string // Optional: For two-factor authentication
 }
 
 export interface RegisterData {
-  name: string;
-  email: string;
-  password: string;
-  role?: string; // Optional: Default role might be set by backend
+  name: string
+  email: string
+  password: string
+  role?: string // Optional: Default role might be set by backend
 }
 
 export interface AuthResponse {
-  success: boolean;
-  message: string;
-  token?: string; // Present on successful login
-  error?: string; // Present on failure
+  success: boolean
+  message?: string
+  token?: string // Present on successful login
+  error?: string // Present on failure
 }
 
 // Represents the user data decoded from the JWT token
 export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
+  id: string
+  name: string
+  email: string
+  role: string
 }
 
 // --- Utility Functions ---
-
-/**
- * Checks if the code is running on the client-side.
- * @returns {boolean} True if running in a browser environment, false otherwise.
- */
-export const isClient = (): boolean => typeof window !== 'undefined';
-
-/**
- * Safely interacts with localStorage.
- * @param action - The action to perform ('get', 'set', 'remove').
- * @param key - The localStorage key.
- * @param value - The value to set (only for 'set' action).
- * @returns The retrieved value (for 'get'), or void.
- */
 const safeLocalStorage = (
   action: 'get' | 'set' | 'remove',
   key: string,
-  value?: string | null
+  value?: string
 ): string | null | void => {
-  if (!isClient()) {
-    // Avoid localStorage access during server-side rendering or build
-    if (action === 'get') return null;
-    return;
+  if (typeof window === 'undefined') {
+    if (action === 'get') return null
+    return
   }
   try {
     if (action === 'get') {
-      return localStorage.getItem(key);
-    } else if (action === 'set' && value !== undefined && value !== null) {
-      localStorage.setItem(key, value);
+      return localStorage.getItem(key)
+    } else if (action === 'set' && value != null) {
+      localStorage.setItem(key, value)
     } else if (action === 'remove') {
-      localStorage.removeItem(key);
+      localStorage.removeItem(key)
     }
   } catch (error) {
-    console.error(`LocalStorage Error (${action} ${key}):`, error);
-    // Gracefully handle storage errors (e.g., storage full, security restrictions)
-    if (action === 'get') return null;
+    console.error(`LocalStorage Error (${action} ${key}):`, error)
+    if (action === 'get') return null
   }
-};
+}
 
 // --- Token Management ---
+export const getToken = (): string | null =>
+  safeLocalStorage('get', TOKEN_KEY) as string | null
 
-/**
- * Retrieves the authentication token from localStorage.
- * @returns {string | null} The token or null if not found or error.
- */
-export const getToken = (): string | null => {
-  return safeLocalStorage('get', TOKEN_KEY) as string | null;
-};
-
-/**
- * Stores the authentication token in localStorage.
- * @param {string} token - The token to store.
- */
 export const setToken = (token: string): void => {
-  safeLocalStorage('set', TOKEN_KEY, token);
-};
+  safeLocalStorage('set', TOKEN_KEY, token)
+}
 
-/**
- * Removes the authentication token from localStorage.
- */
 export const removeToken = (): void => {
-  safeLocalStorage('remove', TOKEN_KEY);
-  safeLocalStorage('remove', LAST_ACTIVE_KEY); // Also clear last active timestamp on logout
-};
+  safeLocalStorage('remove', TOKEN_KEY)
+  safeLocalStorage('remove', LAST_ACTIVE_KEY)
+}
 
-/**
- * Updates the last active timestamp in localStorage.
- */
 export const updateLastActive = (): void => {
-  safeLocalStorage('set', LAST_ACTIVE_KEY, new Date().toISOString());
-};
+  safeLocalStorage('set', LAST_ACTIVE_KEY, new Date().toISOString())
+}
 
 // --- Authentication Status ---
+export const isAuthenticated = (): boolean => !!getToken()
 
-/**
- * Checks if a user token exists in localStorage.
- * @returns {boolean} True if a token exists, false otherwise.
- */
-export const isAuthenticated = (): boolean => {
-  return !!getToken();
-};
-
-/**
- * Parses the JWT token to extract user information.
- * Handles potential errors during parsing.
- * @returns {User | null} The decoded user information or null if token is invalid/missing.
- */
 export const parseUserFromToken = (): User | null => {
-  const token = getToken();
-  if (!token) {
-    return null;
-  }
+  const token = getToken()
+  if (!token) return null
 
   try {
-    const base64Url = token.split('.')[1];
-    if (!base64Url) {
-      throw new Error('Invalid JWT token format: Missing payload.');
-    }
-    // Replace Base64 URL characters and decode
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const base64Url = token.split('.')[1]
+    if (!base64Url) throw new Error('Invalid JWT token format')
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
     const jsonPayload = decodeURIComponent(
       atob(base64)
         .split('')
         .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
         .join('')
-    );
-
-    const payload = JSON.parse(jsonPayload);
-
-    // Validate expected payload structure
-    if (!payload.id || !payload.role) {
-       console.warn('Parsed token payload is missing expected fields (id, role).', payload);
-       // Depending on strictness, you might throw an error or return null here
-    }
-
-    // Return standardized User object with defaults
+    )
+    const payload = JSON.parse(jsonPayload)
     return {
       id: payload.id,
-      name: payload.name || 'User', // Default name if not present
-      email: payload.email || '', // Default email if not present
-      role: payload.role || 'student', // Default role if not present
-    };
+      name: payload.name || 'User',
+      email: payload.email || '',
+      role: payload.role || 'student',
+    }
   } catch (error) {
-    console.error('Error parsing JWT token:', error);
-    removeToken(); // If token is invalid, remove it
-    return null;
+    console.error('Error parsing JWT token:', error)
+    removeToken()
+    return null
   }
-};
+}
 
 // --- API Functions ---
+const defaultHeaders = {
+  'Content-Type': 'application/json',
+  Accept: 'application/json',
+}
 
-/**
- * Handles the user login request.
- * @param {LoginCredentials} credentials - User's email and password.
- * @returns {Promise<AuthResponse>} The result of the login attempt.
- */
-export const login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
+// Register
+export const register = async (
+  userData: RegisterData
+): Promise<AuthResponse> => {
   try {
-    const response = await fetch(`${API_URL}/auth/login`, {
+    const res = await fetch(`${API_URL}/auth/register`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(credentials),
-    });
-
-    const data: AuthResponse = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        message: data.message || data.error || `Login failed (HTTP ${response.status})`,
-        error: data.error || data.message || 'Unknown login error',
-      };
-    }
-
-    if (data.token) {
-      setToken(data.token);
-      updateLastActive(); // Update activity on successful login
-    } else {
-        // This case shouldn't happen if response.ok is true and backend is correct, but good to handle
-        console.warn("Login successful but no token received.");
-        return {
-            success: false,
-            message: "Login seemed successful but no token was provided by the server.",
-            error: "Missing token in response",
-        };
-    }
-
-    return {
-      success: true,
-      message: data.message || 'Login successful',
-      token: data.token,
-    };
-  } catch (error: any) {
-    console.error('Login API request error:', error);
-    return {
-      success: false,
-      message: 'An network error occurred during login. Please try again.',
-      error: error.message || 'Network error',
-    };
-  }
-};
-
-/**
- * Handles the user registration request.
- * @param {RegisterData} userData - User's registration details.
- * @returns {Promise<AuthResponse>} The result of the registration attempt.
- */
-export const register = async (userData: RegisterData): Promise<AuthResponse> => {
-  try {
-    const response = await fetch(`${API_URL}/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+      mode: 'cors',
+      headers: defaultHeaders,
       body: JSON.stringify(userData),
-    });
-
-    const data: AuthResponse = await response.json();
-
-    if (!response.ok) {
+    })
+    const data = await res.json()
+    if (!res.ok) {
       return {
         success: false,
-        message: data.message || data.error || `Registration failed (HTTP ${response.status})`,
-        error: data.error || data.message || 'Unknown registration error',
-      };
+        error: data.error || data.message || `Registration failed (${res.status})`,
+      }
     }
-
-    // Registration typically doesn't return a token, just success/message
     return {
       success: true,
       message: data.message || 'Registration successful. Please log in.',
-    };
-  } catch (error: any) {
-    console.error('Registration API request error:', error);
+    }
+  } catch (err: any) {
+    console.error('Registration API error:', err)
     return {
       success: false,
-      message: 'An network error occurred during registration. Please try again.',
-      error: error.message || 'Network error',
-    };
-  }
-};
-
-/**
- * Handles user logout, clearing local token and optionally notifying the backend.
- */
-export const logout = async (): Promise<void> => {
-  const token = getToken(); // Get token before removing it
-
-  // Always remove local token regardless of API call success
-  removeToken();
-
-  if (token) {
-    try {
-      // Attempt to notify the backend about the logout
-      await fetch(`${API_URL}/auth/logout`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-       console.log("Backend logout notification sent.");
-    } catch (error) {
-      // Log backend logout error but don't block the overall logout process
-      console.warn('Optional: Backend logout API call failed:', error);
+      error: err.message || 'Network error during registration',
     }
   }
-};
+}
 
-/**
- * Makes an authenticated API request using the stored token.
- * Throws an error if not authenticated or if the fetch fails.
- * @param {string} url - The relative API endpoint URL (e.g., '/users/profile').
- * @param {RequestInit} options - Standard fetch options (method, body, etc.).
- * @returns {Promise<Response>} The fetch Response object.
- */
+// Login
+export const login = async (
+  credentials: LoginCredentials
+): Promise<AuthResponse> => {
+  try {
+    const res = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      mode: 'cors',
+      headers: defaultHeaders,
+      body: JSON.stringify(credentials),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return {
+        success: false,
+        error: data.error || data.message || `Login failed (${res.status})`,
+      }
+    }
+    if (data.token) {
+      setToken(data.token)
+      updateLastActive()
+      return { success: true, token: data.token, message: data.message }
+    } else {
+      return { success: false, error: 'No token returned from server.' }
+    }
+  } catch (err: any) {
+    console.error('Login API error:', err)
+    return { success: false, error: err.message || 'Network error during login' }
+  }
+}
+
+// Logout
+export const logout = async (): Promise<void> => {
+  const token = getToken()
+  removeToken()
+  if (token) {
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        mode: 'cors',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...defaultHeaders,
+        },
+      })
+    } catch (err) {
+      console.warn('Backend logout error:', err)
+    }
+  }
+}
+
+// Enable MFA
+export const enableMFA = async (): Promise<AuthResponse> => {
+  const token = getToken()
+  if (!token) {
+    return { success: false, error: 'Not authenticated' }
+  }
+  try {
+    const res = await fetch(`${API_URL}/auth/enable-mfa`, {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...defaultHeaders,
+      },
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return {
+        success: false,
+        error: data.error || data.message || `Enable MFA failed (${res.status})`,
+      }
+    }
+    return { success: true, message: data.message }
+  } catch (err: any) {
+    console.error('Enable MFA API error:', err)
+    return { success: false, error: err.message || 'Network error during MFA enable' }
+  }
+}
+
+// Authenticated fetch helper
 export const fetchWithAuth = async (
   url: string,
   options: RequestInit = {}
 ): Promise<Response> => {
-  const token = getToken();
-
-  if (!token) {
-    console.error('fetchWithAuth called without a token.');
-    // Re-throwing allows calling components to handle the unauthenticated state
-    throw new Error('Not authenticated');
-  }
-
-  // Update activity timestamp on authenticated requests
-  updateLastActive();
-
+  const token = getToken()
+  if (!token) throw new Error('Not authenticated')
+  updateLastActive()
   const headers = {
-    // Ensure JSON content type unless specified otherwise
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    ...options.headers, // Allow overriding headers
-    'Authorization': `Bearer ${token}`, // Add the Authorization header
-  };
-
-  // Prepend API base URL if the provided URL is relative
-  const fullUrl = url.startsWith('http') ? url : `${API_URL}${url.startsWith('/') ? url : `/${url}`}`;
-
-  console.log(`Fetching [${options.method || 'GET'}] from URL:`, fullUrl); // Log method too
-
-  try {
-    const response = await fetch(fullUrl, {
-      ...options,
-      headers,
-    });
-    // Note: We don't check response.ok here. The calling function should handle it.
-    return response;
-  } catch (error) {
-    console.error(`Fetch error for ${fullUrl}:`, error);
-    // Re-throw the error so the caller can handle network issues
-    throw error;
+    Authorization: `Bearer ${token}`,
+    ...(options.headers as object),
   }
-};
+  const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`
+  return fetch(fullUrl, { ...options, headers, mode: 'cors' })
+}
 
 // --- React Hook for Auth ---
-
-/**
- * Custom hook providing utility functions for handling authentication redirects in React components.
- */
 export const useAuth = () => {
-  const router = useRouter();
+  const router = useRouter()
 
-  /**
-   * Checks if the user is authenticated. If not, redirects to the login page.
-   * Should be called within useEffect or event handlers on the client-side.
-   * @returns {boolean} True if authenticated, false if redirection initiated.
-   */
   const requireAuth = (): boolean => {
-    if (!isClient()) return false; // Don't run redirect logic on server
-
     if (!isAuthenticated()) {
-      console.log('Authentication required, redirecting to login.');
-      router.push('/login'); // Or your specific login route
-      return false;
+      router.push('/login')
+      return false
     }
-    return true;
-  };
+    return true
+  }
 
-  /**
-   * Checks if the user is already authenticated. If so, redirects to the main dashboard/app page.
-   * Useful for login/register pages to prevent access if already logged in.
-   * Should be called within useEffect or event handlers on the client-side.
-   * @returns {boolean} True if redirection initiated, false otherwise.
-   */
   const redirectIfAuthenticated = (): boolean => {
-     if (!isClient()) return false; // Don't run redirect logic on server
-
     if (isAuthenticated()) {
-      console.log('User already authenticated, redirecting to dashboard.');
-      router.push('/dashboard'); // Or your main authenticated route
-      return true;
+      router.push('/dashboard')
+      return true
     }
-    return false;
-  };
+    return false
+  }
 
-  return { requireAuth, redirectIfAuthenticated };
-}; 
+  return { requireAuth, redirectIfAuthenticated }
+}
+
+// --- NEW: updateProfile (handles file + JSON payloads) ---
+export async function updateProfile(data: {
+  name?: string
+  email?: string
+  pickupLocation?: { address?: string }
+  dropoffLocation?: { address?: string }
+  profilePicture?: File
+}): Promise<{ success: boolean; user?: any; error?: string }> {
+  try {
+    let res: Response
+
+    if (data.profilePicture instanceof File) {
+      // file + JSON → FormData
+      const form = new FormData()
+      form.append('profilePicture', data.profilePicture)
+      if (data.name) form.append('name', data.name)
+      if (data.email) form.append('email', data.email)
+      if (data.pickupLocation)
+        form.append('pickupLocation', JSON.stringify(data.pickupLocation))
+      if (data.dropoffLocation)
+        form.append('dropoffLocation', JSON.stringify(data.dropoffLocation))
+
+      res = await fetch(`${API_URL}/auth/me`, {
+        method: 'PATCH',
+        mode: 'cors',
+        headers: {
+          Authorization: `Bearer ${getToken()}`, // leave out Content-Type
+        },
+        body: form,
+      })
+    } else {
+      // pure JSON patch
+      res = await fetch(`${API_URL}/auth/me`, {
+        method: 'PATCH',
+        mode: 'cors',
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+    }
+
+    const json = await res.json()
+    if (!res.ok || !json.success) {
+      return { success: false, error: json.error || 'Update failed' }
+    }
+    return { success: true, user: json.user }
+  } catch (err: any) {
+    console.error('updateProfile error', err)
+    return { success: false, error: err.message || 'Network error' }
+  }
+}
+

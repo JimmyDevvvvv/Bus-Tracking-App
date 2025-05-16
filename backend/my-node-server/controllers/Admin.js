@@ -248,7 +248,7 @@ export const createBus = async (req, res) => {
             licensePlate,
             capacity,
             driver_id,
-            assignedStudentIds = [],
+            studentsAssigned = [],
             status,
             model,
             year,
@@ -286,8 +286,8 @@ export const createBus = async (req, res) => {
             licensePlate,
             capacity: capacity ? parseInt(capacity) : undefined,
             driver_id,
-            assignedStudentIds,
-            currentStudentCount: assignedStudentIds ? assignedStudentIds.length : 0,
+            studentsAssigned,
+            currentStudentCount: studentsAssigned ? studentsAssigned.length : 0,
             status,
             model,
             year: year ? parseInt(year) : undefined,
@@ -338,7 +338,7 @@ export const getBusById = async (req, res) => {
 
         const bus = await Bus.findById(id)
             .populate('driver_id', 'name')
-            .populate('assignedStudentIds', 'name'); // Populate student names as well if needed
+            .populate('studentsAssigned', 'name'); // Populate student names as well if needed
 
         if (!bus) {
             // Standardized error response
@@ -369,15 +369,15 @@ export const updateBus = async (req, res) => {
         if (updates.year) updates.year = parseInt(updates.year);
         if (updates.lastMaintenance) updates.lastMaintenance = new Date(updates.lastMaintenance);
 
-        // Update currentStudentCount if assignedStudentIds is provided
-        if (updates.assignedStudentIds) {
-            updates.currentStudentCount = updates.assignedStudentIds.length;
+        // Update currentStudentCount if studentsAssigned is provided
+        if (updates.studentsAssigned) {
+            updates.currentStudentCount = updates.studentsAssigned.length;
         }
 
         // Use runValidators to ensure schema validation on update
         const updatedBus = await Bus.findByIdAndUpdate(id, updates, { new: true, runValidators: true })
                                      .populate('driver_id', 'name') // Populate driver in response
-                                     .populate('assignedStudentIds', 'name'); // Populate students in response
+                                     .populate('studentsAssigned', 'name'); // Populate students in response
 
         if (!updatedBus) {
             // Standardized error response
@@ -1428,8 +1428,8 @@ export const getAnalyticsEngagement = async (req, res) => {
             // Get all student IDs assigned to these buses
             const studentIds = [];
             busesOnRoute.forEach(bus => {
-                if (bus.assignedStudentIds && Array.isArray(bus.assignedStudentIds)) {
-                    studentIds.push(...bus.assignedStudentIds);
+                if (bus.studentsAssigned && Array.isArray(bus.studentsAssigned)) {
+                    studentIds.push(...bus.studentsAssigned);
                 }
             });
             
@@ -1735,4 +1735,40 @@ export const updateSystemSettings = async (req, res) => {
             message: error.message
         });
     }
+};
+
+export const assignStudentsToBus = async (req, res) => {
+  try {
+    const { id } = req.params;              // bus _id
+    const { studentIds } = req.body;        // array of user _ids
+
+    // validate
+    if (!Array.isArray(studentIds)) {
+      return res.status(400).json({ error: "studentIds must be an array" });
+    }
+
+    // ensure all IDs exist and are students
+    const validStudents = await User.find({
+      _id: { $in: studentIds },
+      role: 'student'
+    }).select('_id');
+    if (validStudents.length !== studentIds.length) {
+      return res.status(400).json({ error: "Some IDs are invalid or not students" });
+    }
+
+    // update bus
+    const bus = await Bus.findById(id);
+    if (!bus) return res.status(404).json({ error: "Bus not found" });
+
+    bus.studentsAssigned = studentIds;
+    await bus.save();
+
+    // respond with updated bus
+    const updated = await Bus.findById(id)
+      .populate('studentsAssigned', 'name email');
+    res.json({ bus: updated });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Could not assign students" });
+  }
 };

@@ -172,7 +172,7 @@ export default function Routes() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <Button variant="outline" onClick={() => setShowMap(!showMap)}>
+            <Button onClick={() => setShowMap(!showMap)}>
               {showMap ? "Hide Map" : "Show Map"}
             </Button>
           </div>
@@ -241,13 +241,13 @@ export default function Routes() {
                 <div className="mb-6">
                   <h2 className="text-2xl font-bold mb-2">{selectedRouteData.name}</h2>
                   <div className="flex items-center gap-3">
-                    <Badge variant="outline" className="text-sm">
+                    <Badge className="text-sm">
                       {selectedRouteData.buses.length} Buses
                     </Badge>
-                    <Badge variant="outline" className="text-sm">
+                    <Badge className="text-sm">
                       {selectedRouteData.stops.length} Stops
                     </Badge>
-                    <Badge variant="outline" className="text-sm">
+                    <Badge className="text-sm">
                       {selectedRouteData.frequency}
                     </Badge>
                   </div>
@@ -293,25 +293,23 @@ export default function Routes() {
                             <span>Stop #{index + 1}</span>
 
                             {index === 0 && (
-                              <Badge variant="outline" className="ml-2 text-xs">
+                              <Badge className="ml-2 text-xs">
                                 Starting Point
                               </Badge>
                             )}
 
                             {index === selectedRouteData.stops.length - 1 && (
-                              <Badge variant="outline" className="ml-2 text-xs">
+                              <Badge className="ml-2 text-xs">
                                 End Point
                               </Badge>
                             )}
                           </div>
 
                           <div className="mt-3 flex gap-2">
-                            <Button variant="outline" size="sm" className="btn-premium">
+                            <Button className="btn-premium">
                               Set Reminder
                             </Button>
                             <Button
-                              variant="outline"
-                              size="sm"
                               onClick={() => setShowMap(true)}
                               className="btn-premium"
                             >

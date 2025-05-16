@@ -2,122 +2,121 @@
 
 import { useSidebar } from "@/components/sidebar-provider"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
-import { Bus, Home, Map, Bell, User, Settings, Menu, LogOut } from "lucide-react"
+import { Home, Map, Bus, Bell, User, Settings, Menu, History } from "lucide-react"
 import { useState, useEffect } from "react"
-import { AuthStatus } from "@/components/ui/auth-status"
+import { fetchWithAuth } from "@/lib/auth"
 import { SignOutButton } from "@/components/sign-out-button"
-import { removeToken } from "@/lib/auth"
+import { usePathname } from "next/navigation"
 
 export function AppSidebar() {
-  // Add client-side only rendering
   const [mounted, setMounted] = useState(false)
-  const pathname = usePathname()
-  const router = useRouter()
-
-  // Only access the context after component is mounted on the client
+  const [profilePic, setProfilePic] = useState<string | null>(null)
+  const { isOpen, toggleSidebar } = useSidebar()
+  const pathname = usePathname() || "/"
+  
+  // only run on client
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Now we can safely use the context
-  const { isOpen, toggleSidebar } = useSidebar()
+  // once we're client‐side, fetch current user
+  useEffect(() => {
+    if (!mounted) return
+    fetchWithAuth("/auth/me")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.user?.profilePicture) {
+          setProfilePic(data.user.profilePicture)
+        }
+      })
+      .catch(console.error)
+  }, [mounted])
 
   const routes = [
-    {
-      name: "Home",
-      path: "/",
-      icon: Home,
-    },
-    {
-      name: "Dashboard",
-      path: "/dashboard",
-      icon: Map,
-    },
-    {
-      name: "Routes",
-      path: "/routes",
-      icon: Bus,
-    },
-    {
-      name: "Notifications",
-      path: "/notifications",
-      icon: Bell,
-    },
-    {
-      name: "Profile",
-      path: "/profile",
-      icon: User,
-    },
-    {
-      name: "Settings",
-      path: "/settings",
-      icon: Settings,
-    },
+    { name: "Trips", path: "/trips", icon: History },
+    { name: "Dashboard",     path: "/dashboard",    icon: Map },
+    { name: "Routes",        path: "/routes",       icon: Bus },
+    { name: "Notifications", path: "/notifications", icon: Bell },
+    { name: "Profile",       path: "/profile",      icon: User },
+    { name: "Settings",      path: "/settings",     icon: Settings },
   ]
-
-  const handleSignOut = () => {
-    removeToken()
-    window.location.href = "/login"
-  }
 
   return (
     <div
       className={cn(
-        "h-screen bg-background/80 backdrop-blur-md border-r border-border transition-all duration-300 ease-in-out",
-        isOpen ? "w-64" : "w-20",
+        "h-screen sticky top-0 bg-background/80 backdrop-blur-md border-r border-border transition-width duration-300 flex flex-col",
+        isOpen ? "w-64" : "w-20"
       )}
     >
+      {/* header */}
       <div className="flex items-center justify-between p-4">
         <div className={cn("flex items-center", !isOpen && "justify-center w-full")}>
           <Bus className="h-8 w-8 text-primary" />
           {isOpen && <span className="ml-2 text-xl font-bold">BusTracker</span>}
         </div>
-        <Button variant="ghost" size="icon" onClick={toggleSidebar} className={cn(!isOpen && "hidden")}>
-          <Menu className="h-5 w-5" />
-        </Button>
+        <button
+          onClick={toggleSidebar}
+          className="p-2 rounded hover:bg-accent/50 transition-colors"
+        >
+          <Menu className="h-5 w-5 text-muted-foreground" />
+        </button>
       </div>
 
-      <div className="px-3 py-2">
-        <nav className="space-y-1">
-          {routes.map((route) => (
+      {/* nav links */}
+      <nav className="flex-1 px-2 space-y-1">
+        {routes.map(r => {
+          const active = pathname === r.path
+          return (
             <Link
-              key={route.path}
-              href={route.path}
+              href={r.path}
+              key={r.path}
               className={cn(
-                "flex items-center px-3 py-3 text-sm rounded-md transition-colors",
-                pathname === route.path
+                "flex items-center px-3 py-2 rounded-md text-sm transition-colors",
+                active
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                !isOpen && "justify-center",
+                !isOpen && "justify-center"
               )}
             >
-              <route.icon className={cn("h-5 w-5", pathname === route.path && "text-primary")} />
-              {isOpen && <span className="ml-3">{route.name}</span>}
+              <r.icon className="h-5 w-5" />
+              {isOpen && <span className="ml-3">{r.name}</span>}
             </Link>
-          ))}
-        </nav>
-      </div>
+          )
+        })}
+      </nav>
 
-      <div className="absolute bottom-4 w-full px-3">
-        {mounted && (
-          isOpen ? (
-            <div className="flex flex-col space-y-2 px-3 py-2">
-              <AuthStatus />
-              <SignOutButton className="w-full justify-start" />
+      {/* footer */}
+      {mounted && (
+        <div className="p-4">
+          {isOpen ? (
+            <div className="flex items-center space-x-3">
+              {profilePic ? (
+                <img
+                  src={profilePic}
+                  alt="Profile"
+                  className="h-8 w-8 rounded-full object-cover"
+                />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                  {/* fallback initials if you want */}
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {/** optionally derive initials here **/}
+                  </span>
+                </div>
+              )}
+              <SignOutButton className="flex-1 justify-start" />
             </div>
           ) : (
-            <SignOutButton 
-              variant="ghost" 
-              showIcon={true}
+            <SignOutButton
+              variant="ghost"
+              showIcon
               size="icon"
-              className="flex items-center w-full justify-center h-10 rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              className="flex items-center justify-center w-full rounded-md hover:bg-accent hover:text-accent-foreground"
             />
-          )
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

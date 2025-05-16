@@ -41,6 +41,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { fetchWithAdminAuth } from '@/lib/adminAuth';
 import {
   Search,
@@ -56,6 +57,7 @@ import {
   ArrowLeft,
   Power,
   PowerOff,
+  User as UserIcon,
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -73,274 +75,212 @@ interface Bus {
   year: number;
   status: 'active' | 'maintenance' | 'retired' | 'inactive';
   driver_id?: DriverInfo | null;
+  assignedStudentIds?: string[];
   createdAt: string;
+}
+interface Student {
+  _id: string;
+  name: string;
 }
 
 export default function BusManagement() {
   const router = useRouter();
+
+  // state
   const [buses, setBuses] = useState<Bus[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [filteredBuses, setFilteredBuses] = useState<Bus[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [sortField, setSortField] = useState<keyof Omit<Bus, 'driver'> | 'driver_id' | '_id'>(
-    'busNumber'
-  );
+  const [sortField, setSortField] = useState<keyof Omit<Bus, 'driver'> | 'driver_id' | '_id'>('busNumber');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
+  // delete dialog
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [busToDelete, setBusToDelete] = useState<Bus | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // status toggle spinner
   const [togglingStatusId, setTogglingStatusId] = useState<string | null>(null);
 
+  // assign‐students dialog
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [busToAssign, setBusToAssign] = useState<Bus | null>(null);
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  // load buses + students
   useEffect(() => {
-    const fetchBuses = async () => {
+    async function load() {
+      setLoading(true);
       try {
-        setLoading(true);
-
-        const response = await fetchWithAdminAuth('/admin/buses');
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `Failed to fetch buses: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (data.buses && Array.isArray(data.buses)) {
-          setBuses(data.buses);
-          setFilteredBuses(data.buses);
-        } else if (Array.isArray(data)) {
-          setBuses(data);
-          setFilteredBuses(data);
-        } else {
-          // eslint-disable-next-line no-undef
-          console.error('Invalid response format for buses:', data);
-          throw new Error('Invalid response format from server');
-        }
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'An unexpected error occurred';
-
-        // eslint-disable-next-line no-undef
-        console.error('Error fetching buses:', error);
-        toast.error(errorMessage || 'Failed to load buses. Please try again.');
+        const [bRes, sRes] = await Promise.all([
+          fetchWithAdminAuth('/admin/buses'),
+          fetchWithAdminAuth('/admin/users?role=student'),
+        ]);
+        if (!bRes.ok || !sRes.ok) throw new Error('Failed to load buses or students');
+        const { buses } = await bRes.json();
+        const { users: students } = await sRes.json();
+        setBuses(buses);
+        setStudents(students);
+      } catch (err) {
+        toast.error((err as Error).message);
       } finally {
         setLoading(false);
       }
-    };
-
-    fetchBuses();
+    }
+    load();
   }, []);
 
+  // filtering/sorting
   useEffect(() => {
     let result = [...buses];
-
     if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      result = result.filter(
-        bus =>
-          bus.busNumber.toLowerCase().includes(search) ||
-          bus.model.toLowerCase().includes(search) ||
-          bus.licensePlate.toLowerCase().includes(search)
+      const s = searchTerm.toLowerCase();
+      result = result.filter(b =>
+        b.busNumber.toLowerCase().includes(s) ||
+        b.model.toLowerCase().includes(s) ||
+        b.licensePlate.toLowerCase().includes(s)
       );
     }
-
     if (statusFilter !== 'all') {
-      result = result.filter(bus => bus.status === statusFilter);
+      result = result.filter(b => b.status === statusFilter);
     }
-
-    result = result.sort((a, b) => {
-      const valA = sortField === 'driver_id' ? a.driver_id?.name : a[sortField];
-      const valB = sortField === 'driver_id' ? b.driver_id?.name : b[sortField];
-
-      let comparison = 0;
-      if (
-        sortField === 'busNumber' ||
-        sortField === 'model' ||
-        sortField === 'licensePlate' ||
-        sortField === 'status' ||
-        sortField === 'driver_id'
-      ) {
-        comparison = String(valA ?? '').localeCompare(String(valB ?? ''));
-      } else if (sortField === 'capacity' || sortField === 'year') {
-        comparison = Number(valA ?? 0) - Number(valB ?? 0);
-      } else if (sortField === 'createdAt') {
-        comparison = new Date(String(valA ?? 0)).getTime() - new Date(String(valB ?? 0)).getTime();
-      }
-
-      return sortDirection === 'asc' ? comparison : comparison * -1;
+    result.sort((a, b) => {
+      const aVal = sortField === 'driver_id' ? a.driver_id?.name : (a as any)[sortField];
+      const bVal = sortField === 'driver_id' ? b.driver_id?.name : (b as any)[sortField];
+      let cmp = 0;
+      if (typeof aVal === 'number') cmp = aVal - (bVal as number);
+      else cmp = String(aVal ?? '').localeCompare(String(bVal ?? ''));
+      return sortDirection === 'asc' ? cmp : -cmp;
     });
-
     setFilteredBuses(result);
   }, [buses, searchTerm, statusFilter, sortField, sortDirection]);
 
-  const handleSort = (field: keyof Omit<Bus, 'driver'> | 'driver_id' | '_id') => {
-    if (field === sortField) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field as keyof Bus | '_id');
+  const handleSort = (field: keyof Bus | 'driver_id' | '_id') => {
+    if (field === sortField) setSortDirection(d => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortField(field);
       setSortDirection('asc');
     }
   };
 
+  // delete
   const initiateDeleteBus = (bus: Bus) => {
     setBusToDelete(bus);
     setIsAlertOpen(true);
   };
-
   const performDeleteBus = async () => {
     if (!busToDelete) return;
-
     setIsDeleting(true);
-
     try {
-      const response = await fetchWithAdminAuth(`/admin/bus/${busToDelete._id}`, {
-        method: 'DELETE',
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || 'Failed to delete bus');
-      }
-
-      setBuses(prevBuses => prevBuses.filter(bus => bus._id !== busToDelete._id));
-      toast.success(`Bus ${busToDelete.busNumber} deleted succe
-      const err = err instanceof Error ? err : new Error('An unexpected error occurred');
-      ssfully.`);
-      setIsAlertOpen(false);
-      setBusToDelete(null);
-    } catch (error: unknown) {
-      // eslint-disable-next-line no-undef
-      console.error('Error deleting bus:', error);
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to delete bus. Please try again.'
-      );
-      setIsAlertOpen(false);
-      setBusToDelete(null);
+      const res = await fetchWithAdminAuth(`/admin/bus/${busToDelete._id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      setBuses(bs => bs.filter(b => b._id !== busToDelete._id));
+      toast.success('Deleted');
+    } catch (err) {
+      toast.error((err as Error).message);
     } finally {
       setIsDeleting(false);
+      setIsAlertOpen(false);
+      setBusToDelete(null);
     }
   };
 
-  const renderStatusDot = (status: string) => {
-    let dotColor = 'bg-gray-400';
-    let textColor = 'text-gray-700 dark:text-gray-300';
-    let bgColor = 'bg-gray-100 dark:bg-gray-800';
-    let text = status.charAt(0).toUpperCase() + status.slice(1);
-
-    switch (status) {
-      case 'active':
-        dotColor = 'bg-green-500';
-        textColor = 'text-green-700 dark:text-green-300';
-        bgColor = 'bg-green-100 dark:bg-green-900';
-        break;
-      case 'inactive':
-        dotColor = 'bg-yellow-500';
-        textColor = 'text-yellow-700 dark:text-yellow-300';
-        bgColor = 'bg-yellow-100 dark:bg-yellow-900';
-        break;
-      case 'maintenance':
-        dotColor = 'bg-orange-500';
-        textColor = 'text-orange-700 dark:text-orange-300';
-        bgColor = 'bg-orange-100 dark:bg-orange-900';
-        text = 'Maintenance';
-        break;
-      case 'retired':
-        dotColor = 'bg-red-500';
-        textColor = 'text-red-700 dark:text-red-300';
-        bgColor = 'bg-red-100 dark:bg-red-900';
-        break;
+  // status toggle
+  const handleToggleStatus = async (bus: Bus) => {
+    if (!['active','inactive'].includes(bus.status)) {
+      return toast.warning(`Cannot toggle from ${bus.status}`);
     }
-
-    return (
-      <div
-        className={cn(
-          'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold',
-          textColor,
-          bgColor
-        )}
-      >
-        <span className={cn('h-2 w-2 rounded-full', dotColor)}></span>
-        {text}
-      </div>
-    );
-  };
-
-  const handleToggleStatus = async (busToToggle: Bus) => {
-    if (!busToToggle) return;
-
-    const currentStatus = busToToggle.status;
-
-    if (currentStatus !== 'active' && currentStatus !== 'inactive') {
-      toast.warning(`Cannot change status from ${currentStatus}.`);
-      return;
-    }
-
-    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-    const actionText = newStatus === 'active' ? 'Activating' : 'Deactivating';
-
-    setTogglingStatusId(busToToggle._id);
+    const next = bus.status === 'active' ? 'inactive' : 'active';
+    setTogglingStatusId(bus._id);
     try {
-      const response = await fetchWithAdminAuth(`/admin/bus/${busToToggle._id}`, {
+      const res = await fetchWithAdminAuth(`/admin/bus/${bus._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ status: next }),
       });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || `Failed to ${actionText.toLowerCase()} bus`);
-      }
-
-      setBuses(prevBuses =>
-        prevBuses.map(bus => (bus._id === busToToggle._id ? { ...bus, status: newStatus } : bus))
-      );
-
-      toast.success(
-        `Bus ${busToToggle.busNumber} successfully ${newStatus === 'active' ? 'activated' : 'deactivated'}.`
-      );
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-
-      // eslint-disable-next-line no-undef
-      console.error(`Error ${actionText.toLowerCase()} bus:`, error);
-      toast.error(errorMessage || `Failed to ${actionText.toLowerCase()} bus.`);
+      if (!res.ok) throw new Error('Status update failed');
+      setBuses(bs => bs.map(b => b._id===bus._id ? { ...b, status: next } : b));
+      toast.success(`Now ${next}`);
+    } catch (err) {
+      toast.error((err as Error).message);
     } finally {
       setTogglingStatusId(null);
     }
   };
 
+  // open assign dialog
+  const openAssign = (bus: Bus) => {
+    setBusToAssign(bus);
+    setSelectedStudents(bus.assignedStudentIds || []);
+    setAssignDialogOpen(true);
+  };
+  // save assignment
+  const saveAssign = async () => {
+    if (!busToAssign) return;
+    setIsAssigning(true);
+    try {
+      const res = await fetchWithAdminAuth(`/admin/bus/${busToAssign._id}`, {
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ assignedStudentIds: selectedStudents }),
+      });
+      if (!res.ok) throw new Error('Assign failed');
+      setBuses(bs => bs.map(b =>
+        b._id===busToAssign._id
+          ? { ...b, assignedStudentIds: selectedStudents }
+          : b
+      ));
+      toast.success('Assigned!');
+      setAssignDialogOpen(false);
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  // status badge helper
+  const renderStatusDot = (status:string) => {
+    const map:{[k:string]:string[]} = {
+      active:['bg-green-500','Active'],
+      inactive:['bg-yellow-500','Inactive'],
+      maintenance:['bg-orange-500','Maintenance'],
+      retired:['bg-red-500','Retired'],
+    };
+    const [dot,text] = map[status]||['bg-gray-400',status];
+    return (
+      <span className={cn(dot,'inline-block h-2 w-2 rounded-full mr-1')} />
+      /* plus text if desired */
+    );
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-full">
+      <Loader2 className="animate-spin h-10 w-10 text-primary" />
+    </div>;
+  }
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <Toaster position="top-right" richColors />
+
       <div className="flex justify-between items-center mb-6 gap-4">
         <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => router.push('/admin')}
-            aria-label="Go to Admin Dashboard"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+          <Button variant="outline" size="icon" onClick={()=>router.push('/admin')}><ArrowLeft/></Button>
           <div>
             <h1 className="text-3xl font-bold">Bus Management</h1>
             <p className="text-muted-foreground">Manage all buses in the system.</p>
           </div>
         </div>
         <Button asChild className="gap-2">
-          <Link href="/admin/buses/new">
-            <Plus className="h-4 w-4" />
-            Add New Bus
-          </Link>
+          <Link href="/admin/buses/new"><Plus/>Add New Bus</Link>
         </Button>
       </div>
 
-      {/* Filter Card */}
+      {/* filters */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Filters</CardTitle>
@@ -348,53 +288,42 @@ export default function BusManagement() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by number, model, plate..."
+                placeholder="Search #, model, plate…"
                 value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                onChange={e=>setSearchTerm(e.target.value)}
                 className="pl-8"
               />
             </div>
-
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
+              <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Status"/></SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   <SelectLabel>Status</SelectLabel>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
-                  <SelectItem value="retired">Retired</SelectItem>
+                  {['all','active','inactive','maintenance','retired'].map(s=>(
+                    <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</SelectItem>
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
-
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearchTerm('');
-                setStatusFilter('all');
-              }}
-              className="gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Reset
+            <Button variant="outline" onClick={() => {
+              setSearchTerm('');
+              setStatusFilter('all');
+            }} className="gap-2">
+              <RefreshCw/>Reset
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Bus Table Card */}
+      {/* table */}
       <Card>
         <CardHeader>
           <CardTitle>Buses</CardTitle>
           <CardDescription>
-            {loading ? 'Loading...' : `Total: ${filteredBuses.length} buses`}
+            {`Total: ${filteredBuses.length} buses`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -402,204 +331,78 @@ export default function BusManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort('busNumber')}>
-                    Bus Number{' '}
-                    {sortField === 'busNumber' &&
-                      (sortDirection === 'asc' ? (
-                        <ArrowUp className="inline h-4 w-4" />
-                      ) : (
-                        <ArrowDown className="inline h-4 w-4" />
-                      ))}
+                  <TableHead className="cursor-pointer" onClick={()=>handleSort('busNumber')}>
+                    Bus# {sortField==='busNumber'? (sortDirection==='asc'?<ArrowUp/>:<ArrowDown/>):null}
                   </TableHead>
-                  <TableHead
-                    className="cursor-pointer hidden md:table-cell"
-                    onClick={() => handleSort('model')}
-                  >
-                    Model{' '}
-                    {sortField === 'model' &&
-                      (sortDirection === 'asc' ? (
-                        <ArrowUp className="inline h-4 w-4" />
-                      ) : (
-                        <ArrowDown className="inline h-4 w-4" />
-                      ))}
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer hidden lg:table-cell"
-                    onClick={() => handleSort('licensePlate')}
-                  >
-                    License Plate{' '}
-                    {sortField === 'licensePlate' &&
-                      (sortDirection === 'asc' ? (
-                        <ArrowUp className="inline h-4 w-4" />
-                      ) : (
-                        <ArrowDown className="inline h-4 w-4" />
-                      ))}
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer hidden sm:table-cell"
-                    onClick={() => handleSort('capacity')}
-                  >
-                    Capacity{' '}
-                    {sortField === 'capacity' &&
-                      (sortDirection === 'asc' ? (
-                        <ArrowUp className="inline h-4 w-4" />
-                      ) : (
-                        <ArrowDown className="inline h-4 w-4" />
-                      ))}
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer hidden md:table-cell"
-                    onClick={() => handleSort('status')}
-                  >
-                    Status{' '}
-                    {sortField === 'status' &&
-                      (sortDirection === 'asc' ? (
-                        <ArrowUp className="inline h-4 w-4" />
-                      ) : (
-                        <ArrowDown className="inline h-4 w-4" />
-                      ))}
-                  </TableHead>
-
-                  <TableHead
-                    className="cursor-pointer hidden lg:table-cell"
-                    onClick={() => handleSort('driver_id')}
-                  >
-                    Driver{' '}
-                    {sortField === 'driver_id' &&
-                      (sortDirection === 'asc' ? (
-                        <ArrowUp className="inline h-4 w-4" />
-                      ) : (
-                        <ArrowDown className="inline h-4 w-4" />
-                      ))}
-                  </TableHead>
-                  <TableHead className="w-[100px] text-right">Actions</TableHead>
+                  <TableHead className="hidden md:table-cell">Model</TableHead>
+                  <TableHead className="hidden lg:table-cell">Plate</TableHead>
+                  <TableHead className="hidden sm:table-cell">Cap</TableHead>
+                  <TableHead className="hidden md:table-cell">Status</TableHead>
+                  <TableHead className="hidden lg:table-cell">Driver</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      {' '}
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                {filteredBuses.map(bus=>(
+                  <TableRow key={bus._id} className="hover:bg-muted/50">
+                    <TableCell>{bus.busNumber}</TableCell>
+                    <TableCell className="hidden md:table-cell">{bus.model}</TableCell>
+                    <TableCell className="hidden lg:table-cell">{bus.licensePlate}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{bus.capacity}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {renderStatusDot(bus.status)}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {bus.driver_id?.name || '—'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="icon" variant="ghost" disabled={togglingStatusId===bus._id}>
+                            {togglingStatusId===bus._id? <Loader2 className="animate-spin h-4 w-4"/> : <MoreHorizontal/>}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator/>
+                          <DropdownMenuItem onClick={()=>router.push(`/admin/buses/${bus._id}`)}>
+                            <Eye className="mr-2 h-4 w-4"/>View
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={()=>router.push(`/admin/buses/${bus._id}/edit`)}>
+                            <Edit className="mr-2 h-4 w-4"/>Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={()=>openAssign(bus)}>
+                            <UserIcon className="mr-2 h-4 w-4"/>Assign Students
+                          </DropdownMenuItem>
+                          {(bus.status==='active'||bus.status==='inactive') && (
+                            <DropdownMenuItem onClick={()=>handleToggleStatus(bus)}>
+                              {bus.status==='active'?<PowerOff className="mr-2 h-4 w-4"/>:<Power className="mr-2 h-4 w-4"/>}
+                              {bus.status==='active'?'Deactivate':'Activate'}
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator/>
+                          <DropdownMenuItem onClick={()=>initiateDeleteBus(bus)} className="text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4"/>Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ) : filteredBuses.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      {' '}
-                      No buses found matching your criteria.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredBuses
-                    .filter(bus => bus && typeof bus === 'object' && bus._id)
-                    .map(bus => (
-                      <TableRow
-                        key={bus._id}
-                        className="hover:bg-muted/50 odd:bg-white even:bg-slate-50 dark:odd:bg-slate-950 dark:even:bg-slate-900"
-                      >
-                        <TableCell className="font-medium py-3 px-4">{bus.busNumber}</TableCell>
-                        <TableCell className="hidden md:table-cell py-3 px-4">
-                          {bus.model}
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell py-3 px-4">
-                          {bus.licensePlate}
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell py-3 px-4">
-                          {bus.capacity}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell py-3 px-4">
-                          {renderStatusDot(bus.status)}
-                        </TableCell>
-
-                        <TableCell className="hidden lg:table-cell py-3 px-4">
-                          {bus.driver_id?.name || 'Unassigned'}
-                        </TableCell>
-                        <TableCell className="text-right py-2 px-4">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                aria-haspopup="true"
-                                size="icon"
-                                variant="ghost"
-                                disabled={togglingStatusId === bus._id}
-                              >
-                                {togglingStatusId === bus._id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <MoreHorizontal className="h-4 w-4" />
-                                )}
-                                <span className="sr-only">Toggle menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => router.push(`/admin/buses/${bus._id}`)}
-                                className="cursor-pointer"
-                              >
-                                <Eye className="mr-2 h-4 w-4" /> View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => router.push(`/admin/buses/${bus._id}/edit`)}
-                                className="cursor-pointer"
-                              >
-                                <Edit className="mr-2 h-4 w-4" /> Edit Bus
-                              </DropdownMenuItem>
-
-                              {(bus.status === 'active' || bus.status === 'inactive') && (
-                                <DropdownMenuItem
-                                  onClick={() => handleToggleStatus(bus)}
-                                  className="cursor-pointer"
-                                  disabled={togglingStatusId === bus._id}
-                                >
-                                  {bus.status === 'active' ? (
-                                    <>
-                                      <PowerOff className="mr-2 h-4 w-4" /> Deactivate
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Power className="mr-2 h-4 w-4" /> Activate
-                                    </>
-                                  )}
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => initiateDeleteBus(bus)}
-                                className="text-destructive focus:text-destructive cursor-pointer"
-                              >
-                                {isDeleting && busToDelete?._id === bus._id ? (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                )}{' '}
-                                Delete Bus
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                )}
+                ))}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
+      {/* delete dialog */}
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogTitle>Confirm deletion</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the bus{' '}
-              <span className="font-semibold">
-                {busToDelete?.busNumber} ({busToDelete?.licensePlate})
-              </span>
-              .
+              This will permanently delete bus&nbsp;
+              <strong>{busToDelete?.busNumber}</strong>.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -607,20 +410,49 @@ export default function BusManagement() {
             <AlertDialogAction
               onClick={performDeleteBus}
               disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground"
             >
-              {isDeleting ? (
-                <>
-                  {' '}
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...{' '}
-                </>
-              ) : (
-                'Delete Bus'
-              )}
+              {isDeleting ? 'Deleting…' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* assign students dialog */}
+      <Dialog open={assignDialogOpen} onOpenChange={()=>setAssignDialogOpen(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Students to {busToAssign?.busNumber}</DialogTitle>
+          </DialogHeader>
+          <div>
+            <label className="block mb-2 font-medium">Students</label>
+            <select
+              multiple
+              className="w-full border rounded p-2"
+              value={selectedStudents}
+              onChange={e => {
+                const options = Array.from(e.target.selectedOptions, option => option.value);
+                setSelectedStudents(options);
+              }}
+              size={Math.min(8, students.length)}
+            >
+              {students.map(s => (
+                <option key={s._id} value={s._id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <DialogFooter className="mt-4 flex justify-end gap-2">
+            <Button variant="outline" onClick={()=>setAssignDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveAssign} disabled={isAssigning}>
+              {isAssigning?'Saving…':'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

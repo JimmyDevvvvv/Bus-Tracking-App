@@ -24,7 +24,8 @@ import {
     getAnalyticsEngagement,
     exportAnalyticsReport,
     getSystemSettings,
-    updateSystemSettings
+    updateSystemSettings,
+    assignStudentsToBus,
 } from '../controllers/Admin.js';
 import { verifyToken, authorizeRoles } from '../middleware/authMiddleware.js';
 
@@ -66,5 +67,10 @@ router.get('/analytics/export', verifyToken, authorizeRoles('admin'), exportAnal
 // System Settings
 router.get('/settings', verifyToken, authorizeRoles('admin'), getSystemSettings);
 router.put('/settings', verifyToken, authorizeRoles('admin'), updateSystemSettings);
-
+router.put(
+  '/bus/:id/assign-students',
+  verifyToken,
+  authorizeRoles('admin'),
+  assignStudentsToBus
+);
 export default router;
