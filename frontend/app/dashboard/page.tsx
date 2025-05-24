@@ -20,6 +20,8 @@ interface UserPayload {
   role?: string;
   assignedBusId?: string;
   pickupLocation?: { latitude: number; longitude: number };
+  dropoffLocation?: { latitude: number; longitude: number };
+  route?: string;
 }
 
 interface BusLocation {
@@ -62,19 +64,25 @@ export default function DashboardPage() {
       } catch {}
     }
 
-    fetchWithAuth("/auth/me")
-      .then(r => r.json())
-      .then(data => {
-        if (data.success && data.user) {
-          setUser(u => ({
-            ...u,
-            assignedBusId: data.user.assignedBusId,
-            pickupLocation: data.user.pickupLocation,
-          }));
-        }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetchWithAuth("/api/student/profile").then(r => r.json()),
+      fetchWithAuth("/api/student/route").then(r => r.json()),
+    ])
+    .then(([profileData, routeData]) => {
+      if (profileData.success && profileData.user) {
+        setUser(u => ({
+          ...u,
+          assignedBusId: profileData.user.assignedBusId,
+          pickupLocation: profileData.user.pickupLocation,
+          dropoffLocation: profileData.user.dropoffLocation,
+        }));
+      }
+      if (routeData.success && routeData.route) {
+        setUser(u => ({ ...u, route: routeData.route }));
+      }
+    })
+    .catch(console.error)
+    .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -83,7 +91,6 @@ export default function DashboardPage() {
     const socket = io("http://localhost:5002");
     socket.emit("join-bus-room", { busId: user.assignedBusId });
 
-    // The DRIVER listens only, STUDENT sends updates
     if (user.role === "student") {
       navigator.geolocation.watchPosition(
         pos => {
@@ -130,7 +137,7 @@ export default function DashboardPage() {
     return <div className="p-4 text-center">Loading dashboard…</div>;
   }
 
-  const { name, assignedBusId, pickupLocation } = user;
+  const { name, assignedBusId, pickupLocation, route } = user;
 
   return (
     <div className="space-y-6">
@@ -174,7 +181,7 @@ export default function DashboardPage() {
               <div className="flex justify-between">
                 <span className="font-medium">Route</span>
                 <span className="text-muted-foreground">
-                  {assignedBusId ? "Campus Loop" : "N/A"}
+                  {assignedBusId ? route ?? "Loading…" : "N/A"}
                 </span>
               </div>
               <div className="flex justify-between">

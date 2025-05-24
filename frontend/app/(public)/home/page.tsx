@@ -43,10 +43,10 @@ export default function HomePage() {
             <span className="text-xl font-bold">BusTracker</span>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/login">
+            <Link href="/auth/login">
               <Button variant="outline">Login</Button>
             </Link>
-            <Link href="/register">
+            <Link href="/auth/register">
               <Button>Sign Up</Button>
             </Link>
           </div>
@@ -67,7 +67,7 @@ export default function HomePage() {
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Link href="/register">
+                  <Link href="/auth/register">
                     <Button className="px-8">Get Started</Button>
                   </Link>
                   <Link href="/routes">

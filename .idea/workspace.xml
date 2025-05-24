@@ -4,7 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a61f8e3f-b8f4-4cc6-8a50-bd678597e3df" name="Changes" comment="" />
+    <list default="true" id="a61f8e3f-b8f4-4cc6-8a50-bd678597e3df" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/my-node-server/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend/my-node-server/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/my-node-server/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend/my-node-server/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/package-lock.json" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -37,12 +42,13 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "MaryamHadALittleLamb",
+    "git-widget-placeholder": "PreProd",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
+    "ts.external.directory.path": "D:\\Pycharm\\Hackthon\\Bus-Tracking\\frontend\\node_modules\\typescript\\lib",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
@@ -63,10 +69,19 @@
       <updated>1746981086265</updated>
       <workItem from="1746981088029" duration="350000" />
       <workItem from="1746981552886" duration="158000" />
+      <workItem from="1747506101852" duration="476000" />
+      <workItem from="1747891065695" duration="5497000" />
+      <workItem from="1748010101200" duration="805000" />
+      <workItem from="1748064085255" duration="2531000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+    <option name="exactExcludedFiles">
+      <list>
+        <option value="$PROJECT_DIR$/frontend/app/layout.jsx" />
+      </list>
+    </option>
   </component>
 </project>

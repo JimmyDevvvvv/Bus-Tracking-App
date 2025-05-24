@@ -26,7 +26,7 @@ const server = http.createServer(app)
 // — Configure Socket.IO with CORS —
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:3000',
+    origin: 'http://localhost:3002',
     methods: ['GET','POST','PATCH','PUT','DELETE'],
     credentials: true
   }
@@ -40,7 +40,7 @@ if (process.env.NODE_ENV !== 'test') {
 
 // — Global middleware —
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: 'http://localhost:3002',
   credentials: true
 }))
 

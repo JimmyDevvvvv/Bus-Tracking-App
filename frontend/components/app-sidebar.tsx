@@ -1,46 +1,49 @@
-"use client"
+"use client";
 
-import { useSidebar } from "@/components/sidebar-provider"
-import { cn } from "@/lib/utils"
-import Link from "next/link"
-import { Home, Map, Bus, Bell, User, Settings, Menu, History } from "lucide-react"
-import { useState, useEffect } from "react"
-import { fetchWithAuth } from "@/lib/auth"
-import { SignOutButton } from "@/components/sign-out-button"
-import { usePathname } from "next/navigation"
+import { useSidebar } from "@/components/sidebar-provider";
+import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { Home, Map, Bus, Bell, User, Settings, Menu, History } from "lucide-react";
+import { useState, useEffect } from "react";
+import { fetchWithAuth, isAuthenticated } from "@/lib/auth";
+import { SignOutButton } from "@/components/sign-out-button";
+import { usePathname } from "next/navigation";
 
 export function AppSidebar() {
-  const [mounted, setMounted] = useState(false)
-  const [profilePic, setProfilePic] = useState<string | null>(null)
-  const { isOpen, toggleSidebar } = useSidebar()
-  const pathname = usePathname() || "/"
-  
-  // only run on client
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const [mounted, setMounted] = useState(false);
+  const [profilePic, setProfilePic] = useState<string | null>(null);
+  const { isOpen, toggleSidebar } = useSidebar();
+  const pathname = usePathname() || "/";
 
-  // once we're client‐side, fetch current user
+  // Ensure client-only rendering
   useEffect(() => {
-    if (!mounted) return
+    setMounted(true);
+  }, []);
+
+  // Only fetch profile if user is authenticated
+  useEffect(() => {
+    if (!mounted || !isAuthenticated()) return;
+
     fetchWithAuth("/auth/me")
       .then(res => res.json())
       .then(data => {
         if (data.success && data.user?.profilePicture) {
-          setProfilePic(data.user.profilePicture)
+          setProfilePic(data.user.profilePicture);
         }
       })
-      .catch(console.error)
-  }, [mounted])
+      .catch(console.error);
+  }, [mounted]);
+
+  if (!isAuthenticated()) return null;
 
   const routes = [
     { name: "Trips", path: "/trips", icon: History },
-    { name: "Dashboard",     path: "/dashboard",    icon: Map },
-    { name: "Routes",        path: "/routes",       icon: Bus },
+    { name: "Dashboard", path: "/dashboard", icon: Map },
+    { name: "Routes", path: "/routes", icon: Bus },
     { name: "Notifications", path: "/notifications", icon: Bell },
-    { name: "Profile",       path: "/profile",      icon: User },
-    { name: "Settings",      path: "/settings",     icon: Settings },
-  ]
+    { name: "Profile", path: "/profile", icon: User },
+    { name: "Settings", path: "/settings", icon: Settings },
+  ];
 
   return (
     <div
@@ -49,7 +52,7 @@ export function AppSidebar() {
         isOpen ? "w-64" : "w-20"
       )}
     >
-      {/* header */}
+      {/* Header */}
       <div className="flex items-center justify-between p-4">
         <div className={cn("flex items-center", !isOpen && "justify-center w-full")}>
           <Bus className="h-8 w-8 text-primary" />
@@ -63,10 +66,10 @@ export function AppSidebar() {
         </button>
       </div>
 
-      {/* nav links */}
+      {/* Navigation Links */}
       <nav className="flex-1 px-2 space-y-1">
         {routes.map(r => {
-          const active = pathname === r.path
+          const active = pathname === r.path;
           return (
             <Link
               href={r.path}
@@ -82,11 +85,11 @@ export function AppSidebar() {
               <r.icon className="h-5 w-5" />
               {isOpen && <span className="ml-3">{r.name}</span>}
             </Link>
-          )
+          );
         })}
       </nav>
 
-      {/* footer */}
+      {/* Footer */}
       {mounted && (
         <div className="p-4">
           {isOpen ? (
@@ -98,12 +101,7 @@ export function AppSidebar() {
                   className="h-8 w-8 rounded-full object-cover"
                 />
               ) : (
-                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                  {/* fallback initials if you want */}
-                  <span className="text-sm font-medium text-muted-foreground">
-                    {/** optionally derive initials here **/}
-                  </span>
-                </div>
+                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center" />
               )}
               <SignOutButton className="flex-1 justify-start" />
             </div>
@@ -118,5 +116,5 @@ export function AppSidebar() {
         </div>
       )}
     </div>
-  )
+  );
 }

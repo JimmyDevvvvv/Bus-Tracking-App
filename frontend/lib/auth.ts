@@ -1,4 +1,3 @@
-// lib/auth.ts
 'use client'
 
 import { useRouter } from 'next/navigation'
@@ -9,7 +8,6 @@ export const API_URL =
 const TOKEN_KEY = 'token'
 const LAST_ACTIVE_KEY = 'lastActive'
 
-// Debug log for API URL (client-side only)
 if (typeof window !== 'undefined') {
   console.log('API URL being used:', API_URL)
 }
@@ -18,24 +16,23 @@ if (typeof window !== 'undefined') {
 export interface LoginCredentials {
   email: string
   password: string
-  otp?: string // Optional: For two-factor authentication
+  otp?: string
 }
 
 export interface RegisterData {
   name: string
   email: string
   password: string
-  role?: string // Optional: Default role might be set by backend
+  role?: string
 }
 
 export interface AuthResponse {
   success: boolean
   message?: string
-  token?: string // Present on successful login
-  error?: string // Present on failure
+  token?: string
+  error?: string
 }
 
-// Represents the user data decoded from the JWT token
 export interface User {
   id: string
   name: string
@@ -43,7 +40,7 @@ export interface User {
   role: string
 }
 
-// --- Utility Functions ---
+// --- LocalStorage Utils ---
 const safeLocalStorage = (
   action: 'get' | 'set' | 'remove',
   key: string,
@@ -67,33 +64,28 @@ const safeLocalStorage = (
   }
 }
 
-// --- Token Management ---
+// --- Token Handling ---
 export const getToken = (): string | null =>
   safeLocalStorage('get', TOKEN_KEY) as string | null
 
-export const setToken = (token: string): void => {
-  safeLocalStorage('set', TOKEN_KEY, token)
-}
+export const setToken = (token: string): void =>
+  void safeLocalStorage('set', TOKEN_KEY, token)
 
 export const removeToken = (): void => {
-  safeLocalStorage('remove', TOKEN_KEY)
-  safeLocalStorage('remove', LAST_ACTIVE_KEY)
+  void safeLocalStorage('remove', TOKEN_KEY)
+  void safeLocalStorage('remove', LAST_ACTIVE_KEY)
 }
 
-export const updateLastActive = (): void => {
-  safeLocalStorage('set', LAST_ACTIVE_KEY, new Date().toISOString())
-}
+export const updateLastActive = (): void =>
+  void safeLocalStorage('set', LAST_ACTIVE_KEY, new Date().toISOString())
 
-// --- Authentication Status ---
 export const isAuthenticated = (): boolean => !!getToken()
 
 export const parseUserFromToken = (): User | null => {
   const token = getToken()
   if (!token) return null
-
   try {
     const base64Url = token.split('.')[1]
-    if (!base64Url) throw new Error('Invalid JWT token format')
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
     const jsonPayload = decodeURIComponent(
       atob(base64)
@@ -115,13 +107,12 @@ export const parseUserFromToken = (): User | null => {
   }
 }
 
-// --- API Functions ---
 const defaultHeaders = {
   'Content-Type': 'application/json',
   Accept: 'application/json',
 }
 
-// Register
+// --- REGISTER ---
 export const register = async (
   userData: RegisterData
 ): Promise<AuthResponse> => {
@@ -129,16 +120,28 @@ export const register = async (
     const res = await fetch(`${API_URL}/auth/register`, {
       method: 'POST',
       mode: 'cors',
+      credentials: 'include',
       headers: defaultHeaders,
-      body: JSON.stringify(userData),
+      body: JSON.stringify({
+        name: userData.name,
+        email: userData.email,
+        password: userData.password,
+        role: userData.role || 'student',
+      }),
     })
+
     const data = await res.json()
+
     if (!res.ok) {
       return {
         success: false,
-        error: data.error || data.message || `Registration failed (${res.status})`,
+        error:
+          data.error ||
+          data.message ||
+          `Registration failed (${res.status})`,
       }
     }
+
     return {
       success: true,
       message: data.message || 'Registration successful. Please log in.',
@@ -152,7 +155,7 @@ export const register = async (
   }
 }
 
-// Login
+// --- LOGIN ---
 export const login = async (
   credentials: LoginCredentials
 ): Promise<AuthResponse> => {
@@ -160,16 +163,21 @@ export const login = async (
     const res = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       mode: 'cors',
+      credentials: 'include',
       headers: defaultHeaders,
       body: JSON.stringify(credentials),
     })
+
     const data = await res.json()
+
     if (!res.ok) {
       return {
         success: false,
-        error: data.error || data.message || `Login failed (${res.status})`,
+        error:
+          data.error || data.message || `Login failed (${res.status})`,
       }
     }
+
     if (data.token) {
       setToken(data.token)
       updateLastActive()
@@ -183,7 +191,7 @@ export const login = async (
   }
 }
 
-// Logout
+// --- LOGOUT ---
 export const logout = async (): Promise<void> => {
   const token = getToken()
   removeToken()
@@ -203,7 +211,7 @@ export const logout = async (): Promise<void> => {
   }
 }
 
-// Enable MFA
+// --- ENABLE MFA ---
 export const enableMFA = async (): Promise<AuthResponse> => {
   const token = getToken()
   if (!token) {
@@ -232,7 +240,7 @@ export const enableMFA = async (): Promise<AuthResponse> => {
   }
 }
 
-// Authenticated fetch helper
+// --- AUTHENTICATED FETCH ---
 export const fetchWithAuth = async (
   url: string,
   options: RequestInit = {}
@@ -248,7 +256,7 @@ export const fetchWithAuth = async (
   return fetch(fullUrl, { ...options, headers, mode: 'cors' })
 }
 
-// --- React Hook for Auth ---
+// --- USE AUTH HOOK ---
 export const useAuth = () => {
   const router = useRouter()
 
@@ -271,7 +279,7 @@ export const useAuth = () => {
   return { requireAuth, redirectIfAuthenticated }
 }
 
-// --- NEW: updateProfile (handles file + JSON payloads) ---
+// --- PROFILE UPDATE ---
 export async function updateProfile(data: {
   name?: string
   email?: string
@@ -283,7 +291,6 @@ export async function updateProfile(data: {
     let res: Response
 
     if (data.profilePicture instanceof File) {
-      // file + JSON → FormData
       const form = new FormData()
       form.append('profilePicture', data.profilePicture)
       if (data.name) form.append('name', data.name)
@@ -297,12 +304,11 @@ export async function updateProfile(data: {
         method: 'PATCH',
         mode: 'cors',
         headers: {
-          Authorization: `Bearer ${getToken()}`, // leave out Content-Type
+          Authorization: `Bearer ${getToken()}`,
         },
         body: form,
       })
     } else {
-      // pure JSON patch
       res = await fetch(`${API_URL}/auth/me`, {
         method: 'PATCH',
         mode: 'cors',
@@ -324,4 +330,3 @@ export async function updateProfile(data: {
     return { success: false, error: err.message || 'Network error' }
   }
 }
-
