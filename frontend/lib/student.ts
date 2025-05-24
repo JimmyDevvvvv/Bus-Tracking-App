@@ -18,6 +18,7 @@ export interface Trip {
   device: string
 }
 
+// Fetch the student profile
 export const getStudentProfile = async (): Promise<StudentProfile> => {
   const res = await fetchWithAuth("/student/profile")
   const data = await res.json()
@@ -25,13 +26,13 @@ export const getStudentProfile = async (): Promise<StudentProfile> => {
   return data.user as StudentProfile
 }
 
+// Update student profile
 export const updateStudentProfile = async (updates: {
   name?: string
   email?: string
   pickupLocation?: { address: string }
   dropoffLocation?: { address: string }
 }): Promise<StudentProfile> => {
-  // serialize the location objects as JSON strings
   const body = new FormData()
   if (updates.name) body.append("name", updates.name)
   if (updates.email) body.append("email", updates.email)
@@ -49,9 +50,20 @@ export const updateStudentProfile = async (updates: {
   return data.user as StudentProfile
 }
 
+// Fetch and normalize trips
 export const getStudentTrips = async (): Promise<Trip[]> => {
   const res = await fetchWithAuth("/student/trips")
   const data = await res.json()
   if (!data.success) throw new Error(data.error || "Failed to load trips")
-  return data.trips as Trip[]
+
+  const rawTrips = data.trips as any[]
+
+  const normalized: Trip[] = rawTrips.map((log) => ({
+    startTime: log.startTime || log.date || "",  // fallback if format changes
+    endTime: log.endTime || log.date || "",
+    ipAddress: log.ipAddress || "Unknown",
+    device: log.device || "Unknown"
+  }))
+
+  return normalized
 }

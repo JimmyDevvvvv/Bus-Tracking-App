@@ -1,5 +1,6 @@
 import express from 'express';
 import {
+  getDashboardMetrics,
   addReportComment,
   adminAction,
   assignDriverToBus,
@@ -68,5 +69,7 @@ router.get('/analytics/export', verifyToken, authorizeRoles('admin'), exportAnal
 router.get('/settings', verifyToken, authorizeRoles('admin'), getSystemSettings);
 router.put('/settings', verifyToken, authorizeRoles('admin'), updateSystemSettings);
 router.put('/bus/:busId/assign-students', verifyToken, authorizeRoles('admin'), assignStudentsToBus);
+
+router.get('/dashboard-metrics', verifyToken, authorizeRoles('admin'), getDashboardMetrics);
 
 export default router;

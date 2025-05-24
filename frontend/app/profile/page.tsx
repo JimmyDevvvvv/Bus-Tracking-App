@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+
 import { User as UserIcon, MapPin, Bus } from "lucide-react"
 import { motion } from "framer-motion"
 
@@ -22,7 +23,6 @@ interface UserProfile {
   profilePicture?: string
   pickupLocation?: Place
   dropoffLocation?: Place
-
   sessionLogs?: any[]
 }
 
@@ -30,7 +30,6 @@ export default function Profile() {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // form state
   const [editName, setEditName] = useState("")
   const [editEmail, setEditEmail] = useState("")
   const [file, setFile] = useState<File | null>(null)
@@ -43,22 +42,49 @@ export default function Profile() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
 
-  // load profile
   useEffect(() => {
-    fetchWithAuth("/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.user) {
-          setUser(data.user)
-          setEditName(data.user.name)
-          setEditEmail(data.user.email)
-          setPreviewUrl(data.user.profilePicture || null)
-          if (data.user.pickupLocation) setPickup(data.user.pickupLocation as Place)
-          if (data.user.dropoffLocation) setDropoff(data.user.dropoffLocation as Place)
+    const fetchUserProfile = async () => {
+      try {
+        const meRes = await fetchWithAuth("/auth/me")
+        const meData = await meRes.json()
+
+        if (!meData.success || !meData.user?.role) {
+          throw new Error("Unable to fetch user role")
         }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
+
+        const { role, _id } = meData.user
+        let profileUrl = ""
+
+        if (role === "admin") {
+          profileUrl = `/admin/users/${_id}`
+        } else if (role === "driver") {
+          profileUrl = "/driver/profile"
+        } else {
+          profileUrl = "/student/profile"
+        }
+
+        const profileRes = await fetchWithAuth(profileUrl)
+        const profileData = await profileRes.json()
+
+        if (profileData.success && profileData.user) {
+          const u = profileData.user
+          setUser(u)
+          setEditName(u.name)
+          setEditEmail(u.email)
+          setPreviewUrl(u.profilePicture || null)
+          if (u.pickupLocation) setPickup(u.pickupLocation as Place)
+          if (u.dropoffLocation) setDropoff(u.dropoffLocation as Place)
+        } else {
+          throw new Error("Profile data malformed or missing.")
+        }
+      } catch (err) {
+        console.error("Error loading profile:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUserProfile()
   }, [])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -94,11 +120,11 @@ export default function Profile() {
   if (loading) {
     return <div className="p-4 text-center">Loading your profile…</div>
   }
+
   if (!user) {
     return <div className="p-4 text-red-600 text-center">Could not load profile.</div>
   }
 
-  // build map embed URL
   const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
   let mapSrc: string | null = null
   if (pickup && dropoff && key) {
@@ -108,18 +134,13 @@ export default function Profile() {
       `&destination=${dropoff.latitude},${dropoff.longitude}` +
       `&zoom=14`
   } else if (pickup && key) {
-    mapSrc =
-      `https://www.google.com/maps/embed/v1/place?key=${key}` +
-      `&q=${pickup.latitude},${pickup.longitude}&zoom=15`
+    mapSrc = `https://www.google.com/maps/embed/v1/place?key=${key}&q=${pickup.latitude},${pickup.longitude}&zoom=15`
   } else if (dropoff && key) {
-    mapSrc =
-      `https://www.google.com/maps/embed/v1/place?key=${key}` +
-      `&q=${dropoff.latitude},${dropoff.longitude}&zoom=15`
+    mapSrc = `https://www.google.com/maps/embed/v1/place?key=${key}&q=${dropoff.latitude},${dropoff.longitude}&zoom=15`
   }
 
   return (
     <div className="h-full flex flex-col">
-      {/* HEADER */}
       <div className="p-4 border-b bg-background/80 backdrop-blur-md sticky top-0 z-10">
         <div className="flex justify-between items-center">
           <div>
@@ -129,11 +150,9 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* BODY */}
       <div className="flex-1 p-4 md:p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-          {/* LEFT CARD + MAP */}
+          {/* Profile summary */}
           <div className="lg:col-span-1 space-y-6">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
               <Card>
@@ -142,9 +161,7 @@ export default function Profile() {
                     {previewUrl ? (
                       <AvatarImage src={previewUrl} alt={user.name} />
                     ) : (
-                      <AvatarFallback>
-                        {user.name.split(" ").map((w) => w[0]).join("")}
-                      </AvatarFallback>
+                      <AvatarFallback>{user.name.split(" ").map(w => w[0]).join("")}</AvatarFallback>
                     )}
                   </Avatar>
                   <h2 className="text-xl font-bold">{user.name}</h2>
@@ -154,16 +171,13 @@ export default function Profile() {
                       <UserIcon className="h-4 w-4 text-muted-foreground" /> {user.email}
                     </div>
                     <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />{" "}
-                      {user.pickupLocation?.address || "No pickup set"}
+                      <MapPin className="h-4 w-4 text-muted-foreground" /> {pickup?.address ?? "No pickup set"}
                     </div>
                     <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />{" "}
-                      {user.dropoffLocation?.address || "No drop-off set"}
+                      <MapPin className="h-4 w-4 text-muted-foreground" /> {dropoff?.address ?? "No drop-off set"}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Bus className="h-4 w-4 text-muted-foreground" />{" "}
-                      {user.sessionLogs?.length ?? 0} trips
+                      <Bus className="h-4 w-4 text-muted-foreground" /> {user.sessionLogs?.length ?? 0} trips
                     </div>
                   </div>
                 </CardContent>
@@ -182,13 +196,11 @@ export default function Profile() {
             )}
           </div>
 
-          {/* SETTINGS PANEL */}
+          {/* Settings Form */}
           <div className="lg:col-span-2">
             <Tabs defaultValue="settings">
               <TabsList className="w-full">
-                <TabsTrigger value="settings" className="flex-1">
-                  Settings
-                </TabsTrigger>
+                <TabsTrigger value="settings" className="flex-1">Settings</TabsTrigger>
               </TabsList>
               <TabsContent value="settings" className="mt-6 space-y-6">
                 <Card>
@@ -199,30 +211,23 @@ export default function Profile() {
                     {saveError && <p className="text-red-600">{saveError}</p>}
                     {saveSuccess && <p className="text-green-600">{saveSuccess}</p>}
 
-                    {/* Profile picture uploader */}
                     <div className="space-y-2">
                       <Label htmlFor="pic">Profile Picture</Label>
                       <Input id="pic" type="file" accept="image/*" onChange={handleFileChange} />
                     </div>
 
-                    {/* Name & Email */}
                     <div className="space-y-2">
                       <Label htmlFor="name">Name</Label>
                       <Input id="name" value={editName} onChange={(e) => setEditName(e.target.value)} />
                     </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={editEmail}
-                        onChange={(e) => setEditEmail(e.target.value)}
-                      />
+                      <Input id="email" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
                     </div>
 
-                    {/* Pickup & Drop-off pickers */}
                     <LocationPicker label="Pickup Location" value={pickup ?? null} onSelect={setPickup} />
-                  
+                    <LocationPicker label="Dropoff Location" value={dropoff ?? null} onSelect={setDropoff} />
 
                     <Button onClick={handleSave} disabled={saving} className="w-full">
                       {saving ? "Saving…" : "Save Changes"}

@@ -2,7 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { fetchWithAdminAuth } from '@/lib/adminAuth';
 import {
@@ -19,54 +25,37 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface OverviewMetric {
-  count: number;
-  changePercentage?: number;
-  average?: number;
-  change?: number;
-}
-
-interface DashboardStats {
-  activeUsers: OverviewMetric;
-  busesOnRoute: OverviewMetric;
-  tripDuration: OverviewMetric;
-  reports: OverviewMetric;
+interface DashboardMetrics {
+  users: { activeToday: number };
+  buses: { onRoute: number };
+  reports: { submittedToday: number; active: number };
 }
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchDashboardStats = async () => {
+    const fetchMetrics = async () => {
       try {
-        setLoading(true);
-        const response = await fetchWithAdminAuth('/analytics/overview');
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(
-            errorData.message || errorData.error || 'Failed to fetch dashboard statistics'
-          );
+        const res = await fetchWithAdminAuth('/admin/dashboard-metrics');
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || err.error || 'Failed to load metrics');
         }
-
-        const data = await response.json();
-        if (!data || !data.metrics) {
-          throw new Error('Invalid data structure received from analytics overview');
-        }
-        setStats(data.metrics);
-      } catch (err: Error | unknown) {
-        const errorMessage =
-          err instanceof Error ? err.message : 'Failed to load dashboard statistics';
-        setError(errorMessage);
-        toast.error(errorMessage);
+        const data = await res.json();
+        if (!data.metrics) throw new Error('Malformed response from backend');
+        setMetrics(data.metrics);
+      } catch (err: any) {
+        toast.error(err.message || 'Error loading dashboard data');
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDashboardStats();
+    fetchMetrics();
   }, []);
 
   if (loading) {
@@ -76,6 +65,16 @@ export default function AdminDashboard() {
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
           <p className="mt-4 text-lg">Loading dashboard data...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (!metrics || error) {
+    return (
+      <div className="p-6">
+        <p className="text-red-500 text-center">
+          {error || 'No dashboard data available'}
+        </p>
       </div>
     );
   }
@@ -92,9 +91,8 @@ export default function AdminDashboard() {
         </Button>
       </div>
 
-      {error && <div className="bg-destructive/15 text-destructive p-4 rounded-md">{error}</div>}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Top Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
@@ -103,10 +101,12 @@ export default function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats?.activeUsers.count ?? 0}</div>
-            <div className="text-sm text-muted-foreground mt-2">Active users today</div>
+            <div className="text-3xl font-bold">{metrics.users.activeToday}</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              Active users today
+            </div>
           </CardContent>
-          <CardFooter className="pt-0">
+          <CardFooter>
             <Button variant="outline" size="sm" asChild className="w-full">
               <Link href="/admin/users">Manage Users</Link>
             </Button>
@@ -121,10 +121,12 @@ export default function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats?.busesOnRoute.count ?? 0}</div>
-            <div className="text-sm text-muted-foreground mt-2">Buses currently on route</div>
+            <div className="text-3xl font-bold">{metrics.buses.onRoute}</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              Currently on route
+            </div>
           </CardContent>
-          <CardFooter className="pt-0">
+          <CardFooter>
             <Button variant="outline" size="sm" asChild className="w-full">
               <Link href="/admin/buses">Manage Buses</Link>
             </Button>
@@ -139,10 +141,12 @@ export default function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats?.reports.count ?? 0}</div>
-            <div className="text-sm text-muted-foreground mt-2">Reports submitted this week</div>
+            <div className="text-3xl font-bold">{metrics.reports.submittedToday}</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              Reports submitted today
+            </div>
           </CardContent>
-          <CardFooter className="pt-0">
+          <CardFooter>
             <Button variant="outline" size="sm" asChild className="w-full">
               <Link href="/admin/reports">View Reports</Link>
             </Button>
@@ -158,11 +162,11 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">Dashboard</div>
-            <div className="text-sm text-muted-foreground mt-2">
-              View usage statistics and reports
+            <div className="text-sm text-muted-foreground mt-1">
+              Usage insights & traffic
             </div>
           </CardContent>
-          <CardFooter className="pt-0">
+          <CardFooter>
             <Button variant="outline" size="sm" asChild className="w-full">
               <Link href="/admin/analytics">View Analytics</Link>
             </Button>
@@ -170,6 +174,7 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
+      {/* Quick Actions */}
       <h2 className="text-xl font-semibold mt-8 mb-4">Quick Actions</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Button
@@ -182,6 +187,7 @@ export default function AdminDashboard() {
             <span>Add New User</span>
           </Link>
         </Button>
+
         <Button
           asChild
           variant="outline"
@@ -192,6 +198,7 @@ export default function AdminDashboard() {
             <span>Add New Bus</span>
           </Link>
         </Button>
+
         <Button
           asChild
           variant="outline"
@@ -204,6 +211,7 @@ export default function AdminDashboard() {
         </Button>
       </div>
 
+      {/* System Status Overview */}
       <h2 className="text-xl font-semibold mt-8 mb-4">System Status Overview</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
@@ -214,9 +222,10 @@ export default function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.activeUsers.count ?? 0}</div>
+            <div className="text-2xl font-bold">{metrics.users.activeToday}</div>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center">
@@ -225,9 +234,10 @@ export default function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.busesOnRoute.count ?? 0}</div>
+            <div className="text-2xl font-bold">{metrics.buses.onRoute}</div>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center">
@@ -236,9 +246,10 @@ export default function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.reports.count ?? 0}</div>
+            <div className="text-2xl font-bold">{metrics.reports.active}</div>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center">

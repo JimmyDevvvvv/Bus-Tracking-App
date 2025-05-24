@@ -1772,3 +1772,34 @@ export const assignStudentsToBus = async (req, res) => {
     res.status(500).json({ error: "Could not assign students" });
   }
 };
+ export const getDashboardMetrics = async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [activeUsersToday, busesOnRoute, reportsSubmitted, activeReports] = await Promise.all([
+      User.countDocuments({ lastLogin: { $gte: today } }),
+      Bus.countDocuments({ status: 'active', isOnRoute: true }), // Adjust based on your schema
+      Report.countDocuments({
+        submittedAt: { $gte: today }
+      }),
+      Report.countDocuments({ status: { $in: ['pending', 'reviewing'] } })
+    ]);
+
+    res.json({
+      success: true,
+      metrics: {
+        users: { activeToday: activeUsersToday },
+        buses: { onRoute: busesOnRoute },
+        reports: { submittedToday: reportsSubmitted, active: activeReports }
+      }
+    });
+  } catch (error) {
+    console.error('Dashboard metric fetch error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch dashboard metrics',
+      error: error.message
+    });
+  }
+};

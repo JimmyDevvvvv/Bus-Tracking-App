@@ -1,6 +1,6 @@
 // controllers/StudentController.js
 import User from '../models/User.js'
-
+import Bus from '../models/Bus.js'
 /**
  * A simple test action
  */
