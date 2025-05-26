@@ -51,13 +51,20 @@ export const getMyRoute = async (req, res) => {
  */
 export const updateStudentProfile = async (req, res) => {
   try {
-    const updates = {}
-    const { name, email, pickupLocation, dropoffLocation } = req.body
+    const updates = {};
+    const {
+      name,
+      email,
+      pickupLocation,
+      dropoffLocation,
+      pickupTime // 🟡 newly added field
+    } = req.body;
 
-    if (name) updates.name = name
-    if (email) updates.email = email
-    if (pickupLocation)  updates.pickupLocation  = JSON.parse(pickupLocation)
-    if (dropoffLocation) updates.dropoffLocation = JSON.parse(dropoffLocation)
+    if (name) updates.name = name;
+    if (email) updates.email = email;
+    if (pickupLocation) updates.pickupLocation = JSON.parse(pickupLocation);
+    if (dropoffLocation) updates.dropoffLocation = JSON.parse(dropoffLocation);
+    if (pickupTime) updates.pickupTime = pickupTime; // 🟡 update it here
 
     const user = await User.findByIdAndUpdate(
       req.user.id,
@@ -65,22 +72,21 @@ export const updateStudentProfile = async (req, res) => {
       { new: true, runValidators: true }
     )
       .select('-password -otp -otpExpires -sessionLogs')
-      .lean()
+      .lean();
 
     if (!user) {
-      return res.status(404).json({ success: false, error: 'Student not found' })
+      return res.status(404).json({ success: false, error: 'Student not found' });
     }
 
-    res.json({ success: true, user })
+    res.json({ success: true, user });
   } catch (err) {
-    console.error('updateStudentProfile error:', err)
+    console.error('updateStudentProfile error:', err);
     if (err.code === 11000 && err.keyPattern?.email) {
-      return res.status(400).json({ success: false, error: 'Email already in use' })
+      return res.status(400).json({ success: false, error: 'Email already in use' });
     }
-    res.status(500).json({ success: false, error: 'Server error' })
+    res.status(500).json({ success: false, error: 'Server error' });
   }
-}
-
+};
 /**
  * GET /api/student/trips
  * Returns the sessionLogs array from the student document, as a "trip history"

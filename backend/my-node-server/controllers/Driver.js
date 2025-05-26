@@ -69,30 +69,35 @@ export const getMyBusInfo = async (req, res) => {
  */
 export const getMyAssignedStudents = async (req, res) => {
   try {
-    const driverId = mongoose.Types.ObjectId.isValid(req.user.id)
-      ? new mongoose.Types.ObjectId(req.user.id)
-      : req.user.id;
+    const driverId = req.user.id;
 
-    const bus = await Bus.findOne({ driver_id: driverId }).populate(
-      "studentsAssigned",
-      "name _id"
-    );
+    const bus = await Bus.findOne({ driver_id: driverId }).populate({
+      path: "studentsAssigned",
+      select: "name email pickupLocation pickupTime pickupStatus profilePicture", // FIXED
+    });
 
     if (!bus) {
-      return res
-        .status(404)
-        .json({ success: false, message: "No bus assigned to this driver." });
+      return res.status(404).json({ success: false, message: "No assigned bus found." });
     }
 
-    const students = bus.studentsAssigned.map((s) => ({
-      id: s._id,
-      name: s.name,
+    const students = bus.studentsAssigned.map((student) => ({
+      id: student._id,
+      name: student.name,
+      email: student.email,
+      pickupTime: student.pickupTime || "N/A",
+      pickupLocation: student.pickupLocation?.address || "Not Set",
+      status: student.pickupStatus || "on time",
+      profilePicture: student.profilePicture
+        ? student.profilePicture.startsWith("http")
+          ? student.profilePicture
+          : `http://localhost:5002${student.profilePicture}`
+        : null,
     }));
 
     res.json({ success: true, students });
   } catch (err) {
     console.error("getMyAssignedStudents error:", err);
-    res.status(500).json({ success: false, message: "Internal server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 

@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion, AnimatePresence } from "framer-motion";
 import SlideOver from "@/components/ui/slide-over";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -27,6 +26,7 @@ interface Student {
   pickupTime: string;
   pickupLocation: string;
   status: "on time" | "late" | "absent";
+  profilePicture?: string;
 }
 
 function getBorderColor(status: string) {
@@ -62,33 +62,36 @@ export default function DriverStudentsPage() {
   const [slideOpen, setSlideOpen] = useState(false);
 
   useEffect(() => {
-    const mockData: Student[] = [
-      {
-        id: "1",
-        name: "Ali Mokhtar",
-        email: "ali@example.com",
-        pickupTime: "7:45 AM",
-        pickupLocation: "Gate A",
-        status: "on time",
-      },
-      {
-        id: "2",
-        name: "Nada Hamdy",
-        email: "nada@example.com",
-        pickupTime: "7:50 AM",
-        pickupLocation: "Gate B",
-        status: "late",
-      },
-      {
-        id: "3",
-        name: "Karim El Sharkawy",
-        email: "karim@example.com",
-        pickupTime: "8:00 AM",
-        pickupLocation: "Main Parking",
-        status: "absent",
-      },
-    ];
-    setStudents(mockData);
+    const fetchStudents = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("http://localhost:5002/api/driver/students", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (data.success && data.students) {
+          setStudents(
+            data.students.map((s: any) => ({
+              id: s.id,
+              name: s.name,
+              email: s.email,
+              pickupTime: s.pickupTime || "--",
+              pickupLocation: s.pickupLocation || "--",
+              status: s.status || "absent",
+              profilePicture: s.profilePicture || null,
+            }))
+          );
+        } else {
+          throw new Error(data.message || "Failed to load students.");
+        }
+      } catch (err) {
+        console.error("Error loading students:", err);
+      }
+    };
+
+    fetchStudents();
   }, []);
 
   const filtered = students.filter((s) =>
@@ -109,71 +112,71 @@ export default function DriverStudentsPage() {
         </div>
 
         <div className="grid gap-4">
-          {filtered.map((student, index) => (
-            <motion.div
-              key={student.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className={`relative p-4 rounded-xl border-l-4 ${getBorderColor(
-                student.status
-              )} bg-[rgba(255,255,255,0.03)] backdrop-blur-md border border-white/10 shadow hover:shadow-xl hover:scale-[1.01] transition-all duration-300 cursor-pointer`}
-              onClick={() => {
-                setSelectedStudent(student);
-                setSlideOpen(true);
-              }}
-            >
-              <div className="flex items-center gap-4">
-                <div
-                  className={`w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-semibold flex items-center justify-center ring-2 ring-offset-2 ${getRingColor(
-                    student.status
-                  )}`}
-                >
-                  {student.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </div>
+          {filtered.length === 0 ? (
+            <p className="text-center text-muted-foreground">No students found.</p>
+          ) : (
+            filtered.map((student, index) => (
+              <motion.div
+                key={student.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className={`relative p-4 rounded-xl border-l-4 ${getBorderColor(
+                  student.status
+                )} bg-[rgba(255,255,255,0.03)] backdrop-blur-md border border-white/10 shadow hover:shadow-xl hover:scale-[1.01] transition-all duration-300 cursor-pointer`}
+                onClick={() => {
+                  setSelectedStudent(student);
+                  setSlideOpen(true);
+                }}
+              >
+                <div className="flex items-center gap-4">
+                  <Avatar className={`w-12 h-12 ring-2 ring-offset-2 ${getRingColor(student.status)}`}>
+                    <AvatarImage src={student.profilePicture || undefined} alt={student.name} />
+                    <AvatarFallback>
+                      {student.name.split(" ").map((n) => n[0]).join("")}
+                    </AvatarFallback>
+                  </Avatar>
 
-                <div className="flex-1">
-                  <p className="text-lg font-semibold">{student.name}</p>
-                  <p className="text-sm text-muted-foreground">{student.email}</p>
-                </div>
+                  <div className="flex-1">
+                    <p className="text-lg font-semibold">{student.name}</p>
+                    <p className="text-sm text-muted-foreground">{student.email}</p>
+                  </div>
 
-                <div className="text-right space-y-1 text-xs">
-                  <div className="flex items-center gap-1 justify-end">
-                    <Clock className="h-4 w-4" /> {student.pickupTime}
+                  <div className="text-right space-y-1 text-xs">
+                    <div className="flex items-center gap-1 justify-end">
+                      <Clock className="h-4 w-4" /> {student.pickupTime}
+                    </div>
+                    <div className="flex items-center gap-1 justify-end">
+                      <DoorOpen className="h-4 w-4" /> {student.pickupLocation}
+                    </div>
+                    <div
+                      className={`font-semibold text-xs ${
+                        student.status === "on time"
+                          ? "neon-on-time"
+                          : student.status === "late"
+                          ? "neon-late"
+                          : "neon-absent"
+                      }`}
+                    >
+                      {student.status}
+                    </div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-primary px-0 hover:underline flex gap-1 items-center justify-end"
+                        >
+                          <MessageSquare className="h-4 w-4" /> Message
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Send quick message</TooltipContent>
+                    </Tooltip>
                   </div>
-                  <div className="flex items-center gap-1 justify-end">
-                    <DoorOpen className="h-4 w-4" /> {student.pickupLocation}
-                  </div>
-                  <div
-                    className={`font-semibold text-xs ${
-                      student.status === "on time"
-                        ? "neon-on-time"
-                        : student.status === "late"
-                        ? "neon-late"
-                        : "neon-absent"
-                    }`}
-                  >
-                    {student.status}
-                  </div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-primary px-0 hover:underline flex gap-1 items-center justify-end"
-                      >
-                        <MessageSquare className="h-4 w-4" /> Message
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Send quick message</TooltipContent>
-                  </Tooltip>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            ))
+          )}
         </div>
 
         <AnimatePresence>
@@ -191,12 +194,12 @@ export default function DriverStudentsPage() {
                 className="space-y-6 p-6 bg-muted/40 rounded-xl shadow-inner"
               >
                 <div className="flex items-center gap-4">
-                  <div className="bg-primary text-white w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold">
-                    {selectedStudent.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </div>
+                  <Avatar className="w-12 h-12">
+                    <AvatarImage src={selectedStudent.profilePicture || undefined} alt={selectedStudent.name} />
+                    <AvatarFallback>
+                      {selectedStudent.name.split(" ").map((n) => n[0]).join("")}
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
                     <p className="text-xl font-semibold">{selectedStudent.name}</p>
                     <p className="text-sm text-muted-foreground">{selectedStudent.email}</p>

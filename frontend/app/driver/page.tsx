@@ -32,8 +32,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-const LiveMap = dynamic(() => import("@/components/ui/DriverMap"), { ssr: false });
+const LiveMap = dynamic(() => import("@/components/ui/DriverMap"), {
+  ssr: false,
+});
 
 interface Driver {
   name: string;
@@ -44,15 +47,12 @@ interface Driver {
 interface Student {
   id: string;
   name: string;
+  profilePicture?: string;
 }
 
 interface BusInfo {
   bus_id: string;
-  driver: {
-    name: string;
-    email: string;
-    role: string;
-  };
+  driver: Driver;
   students: Student[];
   areaServed: string[];
 }
@@ -149,7 +149,7 @@ export default function DriverDashboard() {
 
         {/* Row 1 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in">
-          <Card>
+          <Card className="rounded-2xl shadow-xl">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Bus className="mr-2 h-5 w-5 text-primary" /> My Bus
@@ -158,10 +158,16 @@ export default function DriverDashboard() {
             <CardContent className="space-y-2">
               {busInfo ? (
                 <>
-                  <div>Bus ID: <Badge>{busInfo.bus_id}</Badge></div>
+                  <div>
+                    Bus ID: <Badge>{busInfo.bus_id}</Badge>
+                  </div>
                   <div>Area: {busInfo.areaServed?.join(", ") || "N/A"}</div>
                   <div>Students: {busInfo.students?.length || 0}</div>
-                  <Button variant="outline" size="sm" onClick={handleLocationUpdate}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleLocationUpdate}
+                  >
                     Update Location
                   </Button>
                 </>
@@ -171,22 +177,40 @@ export default function DriverDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="rounded-2xl shadow-xl">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Users className="mr-2 h-5 w-5 text-primary" /> My Students
               </CardTitle>
             </CardHeader>
-            <CardContent className="max-h-40 overflow-y-auto space-y-1">
+            <CardContent className="max-h-40 overflow-y-auto space-y-3">
               {students.length > 0 ? (
-                students.map((s) => <div key={s.id}>• {s.name}</div>)
+                students.map((s) => (
+                  <div key={s.id} className="flex items-center gap-3">
+                    <Avatar className="w-8 h-8">
+                      <AvatarImage
+                        src={s.profilePicture || undefined}
+                        alt={s.name}
+                      />
+                      <AvatarFallback>
+                        {s.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium">{s.name}</span>
+                  </div>
+                ))
               ) : (
-                <div className="text-muted-foreground">No students assigned</div>
+                <div className="text-muted-foreground">
+                  No students assigned
+                </div>
               )}
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="rounded-2xl shadow-xl">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <AlertTriangle className="mr-2 h-5 w-5 text-primary" /> Emergency
@@ -195,19 +219,43 @@ export default function DriverDashboard() {
             <CardContent className="flex gap-4">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button className={glowingBtn("bg-yellow-900", "#f59e0b", "emergency-glow-orange")}>⚡</button>
+                  <button
+                    className={glowingBtn(
+                      "bg-yellow-900",
+                      "#f59e0b",
+                      "emergency-glow-orange"
+                    )}
+                  >
+                    ⚡
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent>Traffic Jam</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button className={glowingBtn("bg-red-900", "#ef4444", "emergency-glow-red")}>🚑</button>
+                  <button
+                    className={glowingBtn(
+                      "bg-red-900",
+                      "#ef4444",
+                      "emergency-glow-red"
+                    )}
+                  >
+                    🚑
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent>Accident</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button className={glowingBtn("bg-blue-900", "#3b82f6", "emergency-glow-blue")}>⏱</button>
+                  <button
+                    className={glowingBtn(
+                      "bg-blue-900",
+                      "#3b82f6",
+                      "emergency-glow-blue"
+                    )}
+                  >
+                    ⏱
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent>Bus Delayed</TooltipContent>
               </Tooltip>
@@ -217,8 +265,12 @@ export default function DriverDashboard() {
 
         {/* Row 2 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in">
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="md:col-span-2">
-            <Card>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="md:col-span-2"
+          >
+            <Card className="rounded-2xl shadow-xl">
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <MapPin className="mr-2 h-5 w-5 text-primary" /> Live Location
@@ -230,14 +282,19 @@ export default function DriverDashboard() {
             </Card>
           </motion.div>
 
-          <Card>
+          <Card className="rounded-2xl shadow-xl">
             <CardHeader>
               <CardTitle className="flex items-center">
-                <CalendarIcon className="mr-2 h-5 w-5 text-primary" /> Upcoming Trips
+                <CalendarIcon className="mr-2 h-5 w-5 text-primary" /> Upcoming
+                Trips
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Calendar mode="single" selected={new Date()} className="rounded-md border" />
+              <Calendar
+                mode="single"
+                selected={new Date()}
+                className="rounded-md border"
+              />
               <p className="mt-2 text-xs text-muted-foreground">
                 Next trip on: <strong>{new Date().toDateString()}</strong>
               </p>
@@ -247,7 +304,7 @@ export default function DriverDashboard() {
 
         {/* Row 3 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
-          <Card>
+          <Card className="rounded-2xl shadow-xl">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Clock className="mr-2 h-5 w-5 text-primary" /> Trip Summary
@@ -260,7 +317,10 @@ export default function DriverDashboard() {
             </CardContent>
           </Card>
 
-          <Card onClick={() => setShowProgress((prev) => !prev)} className="cursor-pointer">
+          <Card
+            onClick={() => setShowProgress((prev) => !prev)}
+            className="cursor-pointer rounded-2xl shadow-xl"
+          >
             <CardHeader>
               <CardTitle className="flex items-center">
                 <BarChart2 className="mr-2 h-5 w-5 text-primary" /> Trip Completion
@@ -275,7 +335,9 @@ export default function DriverDashboard() {
                   transition={{ duration: 0.5 }}
                 >
                   <CardContent>
-                    <p className="text-sm mb-2">72% of trips completed this week</p>
+                    <p className="text-sm mb-2">
+                      72% of trips completed this week
+                    </p>
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: "72%" }}

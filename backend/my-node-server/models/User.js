@@ -10,7 +10,7 @@ const userSchema = new mongoose.Schema({
   password:       { type: String, required: true },
   phone:          { type: String },
   profilePicture: { type: String },
-  role:           { type: String, enum: ['admin','driver','student'], default: 'student' },
+  role:           { type: String, enum: ['admin', 'driver', 'student'], default: 'student' },
   isActive:       { type: Boolean, default: true },
 
   // Activity timestamps
@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema({
   // Driver-specific
   licenseNumber:  { type: String },
   assignedBusId:  { type: mongoose.Schema.Types.ObjectId, ref: 'Bus' },
-  currentLocation:{
+  currentLocation: {
     latitude:     Number,
     longitude:    Number,
     timestamp:    Date,
@@ -33,6 +33,8 @@ const userSchema = new mongoose.Schema({
   // Student-specific
   studentId:      { type: String },
   grade:          { type: String },
+  pickupTime:     { type: String, default: '7:45 AM' },
+  pickupStatus:   { type: String, enum: ['on time', 'late', 'absent'], default: 'on time' },
   parentContactInfo: [{
     name:         { type: String },
     phone:        { type: String },
@@ -44,7 +46,7 @@ const userSchema = new mongoose.Schema({
     timestamp:    Date,
     address:      String
   },
-  dropoffLocation:{
+  dropoffLocation: {
     latitude:     Number,
     longitude:    Number,
     timestamp:    Date,
@@ -65,7 +67,7 @@ const userSchema = new mongoose.Schema({
   timestamps: true  // Adds createdAt & updatedAt
 });
 
-// Hash password
+// Hash password before save
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   const salt = await bcrypt.genSalt(10);
@@ -73,7 +75,7 @@ userSchema.pre('save', async function(next) {
   next();
 });
 
-// Keep updatedAt fresh on findOneAndUpdate
+// Update updatedAt on findOneAndUpdate
 userSchema.pre('findOneAndUpdate', function() {
   this.set({ updatedAt: new Date() });
 });

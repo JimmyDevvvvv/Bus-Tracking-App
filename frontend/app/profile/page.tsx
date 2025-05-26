@@ -1,142 +1,149 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { fetchWithAuth, updateProfile } from "@/lib/auth"
-import { LocationPicker, Place } from "@/components/LocationPicker"
+import { useState, useEffect } from "react";
+import { fetchWithAuth, updateProfile } from "@/lib/auth";
+import { LocationPicker, Place } from "@/components/LocationPicker";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-import { User as UserIcon, MapPin, Bus } from "lucide-react"
-import { motion } from "framer-motion"
+import { User as UserIcon, MapPin, Bus } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface UserProfile {
-  _id: string
-  name: string
-  email: string
-  role: "student" | "driver" | "admin"
-  profilePicture?: string
-  pickupLocation?: Place
-  dropoffLocation?: Place
-  sessionLogs?: any[]
+  _id: string;
+  name: string;
+  email: string;
+  role: "student" | "driver" | "admin";
+  profilePicture?: string;
+  pickupLocation?: Place;
+  dropoffLocation?: Place;
+  pickupTime?: string;
+  sessionLogs?: any[];
 }
 
 export default function Profile() {
-  const [user, setUser] = useState<UserProfile | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [editName, setEditName] = useState("")
-  const [editEmail, setEditEmail] = useState("")
-  const [file, setFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  const [pickup, setPickup] = useState<Place | null>(null)
-  const [dropoff, setDropoff] = useState<Place | null>(null)
+  const [pickup, setPickup] = useState<Place | null>(null);
+  const [dropoff, setDropoff] = useState<Place | null>(null);
+  const [pickupTime, setPickupTime] = useState("");
 
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        const meRes = await fetchWithAuth("/auth/me")
-        const meData = await meRes.json()
+        const meRes = await fetchWithAuth("/auth/me");
+        const meData = await meRes.json();
 
         if (!meData.success || !meData.user?.role) {
-          throw new Error("Unable to fetch user role")
+          throw new Error("Unable to fetch user role");
         }
 
-        const { role, _id } = meData.user
-        let profileUrl = ""
+        const { role, _id } = meData.user;
+        let profileUrl = "";
 
         if (role === "admin") {
-          profileUrl = `/admin/users/${_id}`
+          profileUrl = `/admin/users/${_id}`;
         } else if (role === "driver") {
-          profileUrl = "/driver/profile"
+          profileUrl = "/driver/profile";
         } else {
-          profileUrl = "/student/profile"
+          profileUrl = "/student/profile";
         }
 
-        const profileRes = await fetchWithAuth(profileUrl)
-        const profileData = await profileRes.json()
+        const profileRes = await fetchWithAuth(profileUrl);
+        const profileData = await profileRes.json();
 
         if (profileData.success && profileData.user) {
-          const u = profileData.user
-          setUser(u)
-          setEditName(u.name)
-          setEditEmail(u.email)
-          setPreviewUrl(u.profilePicture || null)
-          if (u.pickupLocation) setPickup(u.pickupLocation as Place)
-          if (u.dropoffLocation) setDropoff(u.dropoffLocation as Place)
+          const u = profileData.user;
+          setUser(u);
+          setEditName(u.name);
+          setEditEmail(u.email);
+          setPreviewUrl(u.profilePicture || null);
+          if (u.pickupLocation) setPickup(u.pickupLocation as Place);
+          if (u.dropoffLocation) setDropoff(u.dropoffLocation as Place);
+          if (u.pickupTime) setPickupTime(u.pickupTime);
         } else {
-          throw new Error("Profile data malformed or missing.")
+          throw new Error("Profile data malformed or missing.");
         }
       } catch (err) {
-        console.error("Error loading profile:", err)
+        console.error("Error loading profile:", err);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchUserProfile()
-  }, [])
+    fetchUserProfile();
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] ?? null
-    setFile(f)
-    if (f) setPreviewUrl(URL.createObjectURL(f))
-  }
+    const f = e.target.files?.[0] ?? null;
+    setFile(f);
+    if (f) setPreviewUrl(URL.createObjectURL(f));
+  };
 
   const handleSave = async () => {
-    setSaveError(null)
-    setSaveSuccess(null)
-    setSaving(true)
+    setSaveError(null);
+    setSaveSuccess(null);
+    setSaving(true);
 
-    const { success, user: updated, error } = await updateProfile({
+    const body: any = {
       name: editName,
       email: editEmail,
-      profilePicture: file || undefined,
-      pickupLocation: pickup || undefined,
-      dropoffLocation: dropoff || undefined,
-    })
+    };
 
-    setSaving(false)
+    if (pickup) body.pickupLocation = JSON.stringify(pickup);
+    if (dropoff) body.dropoffLocation = JSON.stringify(dropoff);
+    if (pickupTime) body.pickupTime = pickupTime;
+    if (file) body.profilePicture = file;
+
+    const { success, user: updated, error } = await updateProfile(body);
+
+    setSaving(false);
     if (success && updated) {
-      setUser(updated)
-      setSaveSuccess("Profile saved!")
-      setFile(null)
-      setPreviewUrl(updated.profilePicture || null)
+      setUser(updated);
+      setSaveSuccess("Profile saved!");
+      setFile(null);
+      setPreviewUrl(updated.profilePicture || null);
     } else {
-      setSaveError(error || "Could not save profile")
+      setSaveError(error || "Could not save profile");
     }
-  }
+  };
 
   if (loading) {
-    return <div className="p-4 text-center">Loading your profile…</div>
+    return <div className="p-4 text-center">Loading your profile…</div>;
   }
 
   if (!user) {
-    return <div className="p-4 text-red-600 text-center">Could not load profile.</div>
+    return <div className="p-4 text-red-600 text-center">Could not load profile.</div>;
   }
 
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-  let mapSrc: string | null = null
+  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  let mapSrc: string | null = null;
   if (pickup && dropoff && key) {
     mapSrc =
       `https://www.google.com/maps/embed/v1/directions?key=${key}` +
       `&origin=${pickup.latitude},${pickup.longitude}` +
       `&destination=${dropoff.latitude},${dropoff.longitude}` +
-      `&zoom=14`
+      `&zoom=14`;
   } else if (pickup && key) {
-    mapSrc = `https://www.google.com/maps/embed/v1/place?key=${key}&q=${pickup.latitude},${pickup.longitude}&zoom=15`
+    mapSrc = `https://www.google.com/maps/embed/v1/place?key=${key}&q=${pickup.latitude},${pickup.longitude}&zoom=15`;
   } else if (dropoff && key) {
-    mapSrc = `https://www.google.com/maps/embed/v1/place?key=${key}&q=${dropoff.latitude},${dropoff.longitude}&zoom=15`
+    mapSrc = `https://www.google.com/maps/embed/v1/place?key=${key}&q=${dropoff.latitude},${dropoff.longitude}&zoom=15`;
   }
 
   return (
@@ -152,7 +159,6 @@ export default function Profile() {
 
       <div className="flex-1 p-4 md:p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Profile summary */}
           <div className="lg:col-span-1 space-y-6">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
               <Card>
@@ -196,7 +202,6 @@ export default function Profile() {
             )}
           </div>
 
-          {/* Settings Form */}
           <div className="lg:col-span-2">
             <Tabs defaultValue="settings">
               <TabsList className="w-full">
@@ -229,6 +234,16 @@ export default function Profile() {
                     <LocationPicker label="Pickup Location" value={pickup ?? null} onSelect={setPickup} />
                     <LocationPicker label="Dropoff Location" value={dropoff ?? null} onSelect={setDropoff} />
 
+                    <div className="space-y-2">
+                      <Label htmlFor="pickupTime">Pickup Time</Label>
+                      <Input
+                        id="pickupTime"
+                        type="time"
+                        value={pickupTime}
+                        onChange={(e) => setPickupTime(e.target.value)}
+                      />
+                    </div>
+
                     <Button onClick={handleSave} disabled={saving} className="w-full">
                       {saving ? "Saving…" : "Save Changes"}
                     </Button>
@@ -240,5 +255,5 @@ export default function Profile() {
         </div>
       </div>
     </div>
-  )
+  );
 }
