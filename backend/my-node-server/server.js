@@ -14,6 +14,8 @@ import busRoutes from './Routes/busRoutes.js'
 import Bus from './models/Bus.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import chatRoomRoutes from './Routes/chatRoomRoutes.js'
+
 
 dotenv.config()
 
@@ -87,7 +89,7 @@ app.use('/api/admin',   adminRoutes)
 app.use('/api/driver',  driverRoutes)
 app.use('/api/student', studentRoutes)
 app.use('/api',         busRoutes)
-
+app.use('/api/chat', chatRoomRoutes)
 app.get('/', (req, res) => {
   res.send('Hello, World! Sockets are live!')
 })
