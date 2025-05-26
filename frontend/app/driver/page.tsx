@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar } from "@/components/ui/calendar";
+import LiveBusMap from "@/components/LiveBusMap";
 import clsx from "clsx";
 import {
   Tooltip,
@@ -36,6 +37,22 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+import {
+  GoogleMap,
+  Marker,
+  useJsApiLoader,
+} from "@react-google-maps/api";
+
+
+// track the driver’s live coords
+
+
+// load the Google Maps JS API
+// const { isLoaded: mapLoaded, loadError } = useJsApiLoader({
+//   googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
+// });
+
 
 const LiveMap = dynamic(() => import("@/components/ui/DriverMap"), {
   ssr: false,
@@ -51,6 +68,7 @@ interface Student {
   id: string;
   name: string;
   profilePicture?: string;
+  pickupLocation?: { latitude: number; longitude: number };
 }
 
 interface BusInfo {
@@ -65,8 +83,14 @@ export default function DriverDashboard() {
   const [busInfo, setBusInfo] = useState<BusInfo | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  const [geocoded, setGeocoded] = useState<
+  Record<string, { lat: number; lng: number }>
+>({});
   const [showProgress, setShowProgress] = useState(false);
-
+  const [busLocation, setBusLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const { isLoaded: mapLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
+  });
   const [selectedEmergency, setSelectedEmergency] = useState<null | {
     title: string;
     icon: string;
@@ -74,6 +98,66 @@ export default function DriverDashboard() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [messageInput, setMessageInput] = useState("");
   const [isSending, setIsSending] = useState(false);
+
+
+  useEffect(() => {
+    if (!busInfo?.bus_id) return;
+    const watcher = navigator.geolocation.watchPosition(
+      pos => {
+        setBusLocation({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        });
+      },
+      err => console.error(err),
+      { enableHighAccuracy: true }
+    );
+    return () => navigator.geolocation.clearWatch(watcher);
+  }, [busInfo]);
+
+
+  useEffect(() => {
+  if (!busInfo?.bus_id) return;
+
+  const watcher = navigator.geolocation.watchPosition(
+    pos => {
+      const { latitude, longitude } = pos.coords;
+      setBusLocation({ latitude, longitude });
+      // (optional) POST to your backend here
+    },
+    err => console.error("Geolocation error:", err),
+    { enableHighAccuracy: true }
+  );
+
+  return () => navigator.geolocation.clearWatch(watcher);
+}, [busInfo]);
+
+useEffect(() => {
+  if (mapLoaded && students.length) {
+    const geocoder = new window.google.maps.Geocoder();
+    students.forEach((s) => {
+      if (
+        typeof s.pickupLocation === "string" &&
+        !geocoded[s.id]
+      ) {
+        geocoder.geocode(
+          { address: s.pickupLocation },
+          (results, status) => {
+            if (status === "OK" && results && results[0]) {
+              setGeocoded((g) => ({
+                ...g,
+                [s.id]: {
+                  lat: results[0].geometry.location.lat(),
+                  lng: results[0].geometry.location.lng(),
+                },
+              }));
+            }
+          }
+        );
+      }
+    });
+  }
+}, [mapLoaded, students]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -87,10 +171,11 @@ export default function DriverDashboard() {
         const driverData = await driverRes.json();
         const busData = await busRes.json();
         const studentData = await studentRes.json();
-
+        
         if (driverData.success) setDriver(driverData.driver);
         if (busData.success) setBusInfo(busData);
         if (studentData.success) setStudents(studentData.students);
+        console.log("students Data:", studentData);
       } catch (err) {
         console.error("Failed to fetch driver data", err);
       } finally {
@@ -457,7 +542,94 @@ export default function DriverDashboard() {
                 </CardHeader>
                 <CardContent className="p-6">
                   <div className="rounded-2xl overflow-hidden shadow-inner h-96">
-                    <LiveMap />
+                            {loadError && <div className="p-4 text-red-500">Map failed to load</div>}
+
+                                              {/* {!mapLoaded ? (
+                                                <div className="flex h-full items-center justify-center">
+                                                  <Loader2 className="animate-spin text-primary" />
+                                                </div>
+                                              ) : busLocation ? (
+                                                <GoogleMap
+                                                  mapContainerStyle={{ width: "100%", height: "100%" }}
+                                                  center={{ lat: busLocation.latitude, lng: busLocation.longitude }}
+                                                  zoom={15}
+                                                >
+                                                  <Marker
+                                                    position={{
+                                                      lat: busLocation.latitude,
+                                                      lng: busLocation.longitude,
+                                                    }}
+                                                    label="🚌"
+                                                  />
+                                                </GoogleMap>
+                                              ) : (
+                                                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                                                  Waiting for position…
+                                                </div>
+                                              )} */}
+
+
+
+
+
+
+
+
+
+
+
+
+                                              <CardContent className="p-6">
+  <div className="rounded-2xl overflow-hidden shadow-inner h-96">
+    {loadError && <div className="p-4 text-red-500">Map failed to load</div>}
+
+    {!mapLoaded ? (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="animate-spin text-primary" />
+      </div>
+    ) : (
+      <GoogleMap
+        mapContainerStyle={{ width: "100%", height: "100%" }}
+        // center on the bus if available, else first student pickup, else (0,0)
+        center={{
+          lat:
+            busLocation?.latitude ??
+            students[0]?.pickupLocation?.latitude ??
+            0,
+          lng:
+            busLocation?.longitude ??
+            students[0]?.pickupLocation?.longitude ??
+            0,
+        }}
+        zoom={13}
+      >
+        {/* 🚌 Bus live marker */}
+        {busLocation && (
+            <Marker
+              position={{
+                lat: Number(busLocation.latitude),
+                lng: Number(busLocation.longitude),
+              }}
+              label="🚌"
+            />
+        )}
+
+        {/* 🎒 Student pickup markers */}
+        {students.map((s) =>
+          geocoded[s.id] ? (
+            <Marker
+              key={s.id}
+              position={geocoded[s.id]}
+              label="🎒"
+            />
+          ) : null
+        )}
+      </GoogleMap>
+    )}
+  </div>
+</CardContent>
+
+
                   </div>
                 </CardContent>
               </Card>

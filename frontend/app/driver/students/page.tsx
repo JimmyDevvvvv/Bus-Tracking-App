@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
+
 // SlideOver component - assumed to be available
 import SlideOver from "@/components/ui/slide-over"; // Add this line
-
+import ChatWindow from "@/components/ChatWindow";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -94,7 +96,7 @@ export default function DriverStudentsPage() {
   const [query, setQuery] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [slideOpen, setSlideOpen] = useState(false);
-
+  const router = useRouter();
   useEffect(() => {
     const fetchStudents = async () => {
       try {
@@ -297,17 +299,18 @@ export default function DriverStudentsPage() {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // Handle message action
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => {
+                              console.log("🎯 clicked send for", selectedStudent!.id);
+                              router.push(`/driver/chat/${selectedStudent!.id}`);
                             }}
-                            className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white p-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"
+                            className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-3 text-lg font-semibold"
                           >
-                            <MessageSquare className="h-4 w-4" />
-                            <span className="text-sm font-medium">Message</span>
+                            <Send className="h-5 w-5" />
+                            Send Quick Message
                           </motion.button>
+
                         </TooltipTrigger>
                         <TooltipContent>Send quick message to student</TooltipContent>
                       </Tooltip>
@@ -411,7 +414,7 @@ export default function DriverStudentsPage() {
                         </div>
                       </div>
                     </div>
-
+                          
                     {/* Action Button */}
                     <motion.button
                       whileHover={{ scale: 1.02 }}
