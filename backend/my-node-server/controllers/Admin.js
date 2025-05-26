@@ -2,8 +2,10 @@ import User from '../models/User.js';
 import Bus from '../models/Bus.js';
 import Report from '../models/Report.js';
 import Settings from '../models/Settings.js';
+import Notification from "../models/Notification.js";
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
+
 
 // Helper function to validate MongoDB ObjectId
 const isValidObjectId = (id) => {
@@ -1801,5 +1803,53 @@ export const assignStudentsToBus = async (req, res) => {
       message: 'Failed to fetch dashboard metrics',
       error: error.message
     });
+  }
+};
+
+
+export const sendAdminNotification = async (req, res) => {
+  try {
+    const { title, message, recipientIds = [], type, isUrgent = false } = req.body;
+
+    if (!title || !type) {
+      return res.status(400).json({ success: false, error: "Title and type are required." });
+    }
+
+    let recipients = recipientIds;
+
+    // If no recipient IDs passed, broadcast to all students
+    if (recipients.length === 0) {
+      const students = await User.find({ role: "student" }).select("_id");
+      recipients = students.map((s) => s._id);
+    }
+
+    const notification = await Notification.create({
+      senderId: req.user.id,
+      recipientIds: recipients,
+      type,
+      title,
+      message,
+      isUrgent,
+    });
+
+    // Emit to each student's room via Socket.io
+    const io = req.app.get("io");
+    if (io) {
+      recipients.forEach((studentId) => {
+        io.to(`user:${studentId}`).emit("notification:new", {
+          id: notification._id,
+          title,
+          message,
+          type,
+          isUrgent,
+          createdAt: notification.createdAt,
+        });
+      });
+    }
+
+    res.status(201).json({ success: true, notification });
+  } catch (err) {
+    console.error("sendAdminNotification error:", err);
+    res.status(500).json({ success: false, error: "Internal server error" });
   }
 };

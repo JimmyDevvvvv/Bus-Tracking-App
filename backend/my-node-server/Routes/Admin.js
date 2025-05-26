@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   getDashboardMetrics,
+  sendAdminNotification,
   addReportComment,
   adminAction,
   assignDriverToBus,
@@ -41,6 +42,7 @@ router.post('/users', verifyToken, authorizeRoles('admin'), createUser);
 router.get('/users/:id', verifyToken, authorizeRoles('admin'), getUserById);
 router.put('/users/:id', verifyToken, authorizeRoles('admin'), updateUser);
 router.delete('/users/:id', verifyToken, authorizeRoles('admin'), deleteUser);
+router.post("/notify", verifyToken, authorizeRoles('admin'), sendAdminNotification);
 
 // Bus Management
 router.get('/buses', verifyToken, authorizeRoles('admin'), getAllBuses);

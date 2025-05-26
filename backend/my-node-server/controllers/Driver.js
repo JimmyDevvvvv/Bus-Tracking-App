@@ -2,6 +2,7 @@
 import mongoose from "mongoose";
 import User from "../models/User.js";
 import Bus from "../models/Bus.js";
+import Notification from "../models/Notification.js";
 
 /**
  * Simple test endpoint
