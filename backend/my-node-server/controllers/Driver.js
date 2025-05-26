@@ -284,3 +284,62 @@ export const getStudentDetails = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
+export const sendDriverNotification = async (req, res) => {
+  try {
+    const { category, message = "" } = req.body;
+
+    const allowedCategories = ["ALL_CLEAR", "TRAFFIC", "ACCIDENT", "DELAYED"];
+    if (!allowedCategories.includes(category)) {
+      return res.status(400).json({ success: false, error: "Invalid emergency category" });
+    }
+
+    // 1. Find the driver's assigned bus
+    const bus = await Bus.findOne({ driver_id: req.user.id });
+    if (!bus || !bus.studentsAssigned || bus.studentsAssigned.length === 0) {
+      return res.status(404).json({ success: false, error: "No assigned students or bus found." });
+    }
+
+    const recipients = bus.studentsAssigned;
+
+    // 2. Generate notification
+    const titleMap = {
+      ALL_CLEAR: "✅ All Clear reported by your bus",
+      TRAFFIC: "🚦 Traffic reported on your bus route",
+      ACCIDENT: "🚨 Accident reported by your bus",
+      DELAYED: "⏱️ Delay reported by your bus"
+    };
+
+    const notification = await Notification.create({
+      senderId: req.user.id,
+      recipientIds: recipients,
+      busId: bus._id,
+      type: "EMERGENCY",
+      category,
+      title: titleMap[category],
+      message,
+      isUrgent: true,
+    });
+
+    // 3. Emit to each student
+    const io = req.app.get("io");
+    if (io) {
+      recipients.forEach((studentId) => {
+        io.to(`user:${studentId}`).emit("notification:new", {
+          id: notification._id,
+          title: titleMap[category],
+          message,
+          type: "EMERGENCY",
+          category,
+          isUrgent: true,
+          createdAt: notification.createdAt,
+        });
+      });
+    }
+
+    res.status(201).json({ success: true, notification });
+  } catch (err) {
+    console.error("sendDriverNotification error:", err);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+};

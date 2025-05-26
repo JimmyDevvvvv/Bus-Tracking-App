@@ -212,36 +212,55 @@ useEffect(() => {
     setShowConfirmModal(true);
   };
 
-  const handleSendNotification = async () => {
-    if (!messageInput.trim() || !selectedEmergency) return;
 
-    setIsSending(true);
-    try {
-      const res = await fetchWithAuth("/driver/send-notification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: selectedEmergency.title,
-          message: messageInput,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert("Notification sent successfully!");
-      } else {
-        alert("Failed to send notification.");
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Error while sending notification.");
-    } finally {
-      setIsSending(false);
-      setShowConfirmModal(false);
-      setMessageInput("");
-      setSelectedEmergency(null);
+const emergencyCategories: Record<string, string> = {
+  "All Clear": "ALL_CLEAR",
+  "Traffic Jam": "TRAFFIC", 
+  "Accident": "ACCIDENT",
+  "Bus Delayed": "DELAYED"
+};
+
+
+ const handleSendNotification = async () => {
+  if (!messageInput.trim() || !selectedEmergency) return;
+
+  setIsSending(true);
+  try {
+    // Convert the display title to backend category with type safety
+    const category = emergencyCategories[selectedEmergency.title];
+    
+    if (!category) {
+      console.error("Unknown emergency category:", selectedEmergency.title);
+      alert("Invalid emergency type selected.");
+      return;
     }
-  };
-
+    
+    const res = await fetchWithAuth("http://localhost:5002/api/driver/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        category: category,
+        message: messageInput,
+      }),
+    });
+    
+    const data = await res.json();
+    if (data.success) {
+      alert("Notification sent successfully!");
+    } else {
+      console.error("Backend error:", data.error);
+      alert(`Failed to send notification: ${data.error || "Unknown error"}`);
+    }
+  } catch (e) {
+    console.error("Network error:", e);
+    alert("Error while sending notification.");
+  } finally {
+    setIsSending(false);
+    setShowConfirmModal(false);
+    setMessageInput("");
+    setSelectedEmergency(null);
+  }
+};
   const closeModal = () => {
     setSelectedEmergency(null);
     setShowConfirmModal(false);

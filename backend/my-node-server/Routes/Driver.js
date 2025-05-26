@@ -8,6 +8,7 @@ import {
   updateStudentStatus,
   raiseDriverAlert,
   getTripStats,
+  sendDriverNotification ,
   getStudentDetails,
 } from "../controllers/Driver.js";
 import { verifyToken, authorizeRoles } from "../middleware/authMiddleware.js";
@@ -20,6 +21,7 @@ router.get("/me", verifyToken, authorizeRoles("driver"), getDriver);
 router.get("/my-bus-info", verifyToken, authorizeRoles("driver"), getMyBusInfo);
 router.get("/students", verifyToken, authorizeRoles("driver"), getMyAssignedStudents);
 router.post("/location", verifyToken, authorizeRoles("driver"), updateLocation);
+router.post("/notify", verifyToken, authorizeRoles("driver"), sendDriverNotification);
 
 // ✅ NEW APIs:
 

@@ -1,6 +1,8 @@
 // controllers/StudentController.js
 import User from '../models/User.js'
 import Bus from '../models/Bus.js'
+import Notification from "../models/Notification.js";
+
 /**
  * A simple test action
  */
@@ -106,4 +108,118 @@ export const getStudentTrips = async (req, res) => {
     console.error('getStudentTrips error:', err)
     res.status(500).json({ success: false, error: 'Server error' })
   }
+
+
+
+  
 }
+
+
+export const getUnreadNotifications = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+
+    const notifications = await Notification.find({
+      recipientIds: studentId,
+      readBy: { $ne: studentId },
+      deletedBy: { $ne: studentId }
+    })
+      .sort({ createdAt: -1 })
+      .populate("senderId", "role name");
+
+    const result = notifications.map((notif) => ({
+      id: notif._id,
+      title: notif.title,
+      message: notif.message,
+      type: notif.type,
+      category: notif.category,
+      isUrgent: notif.isUrgent,
+      time: notif.createdAt,
+      read: false,
+      from: notif.senderId?.role === "admin" ? "System" : notif.senderId?.name || "Unknown"
+    }));
+
+    res.json({ success: true, notifications: result });
+  } catch (err) {
+    console.error("getUnreadNotifications error:", err);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+};
+
+
+
+
+export const getReadNotifications = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+
+    const notifications = await Notification.find({
+      recipientIds: studentId,
+      readBy: studentId,
+      deletedBy: { $ne: studentId }
+    })
+      .sort({ createdAt: -1 })
+      .populate("senderId", "role name");
+
+    const result = notifications.map((notif) => ({
+      id: notif._id,
+      title: notif.title,
+      message: notif.message,
+      type: notif.type,
+      category: notif.category,
+      isUrgent: notif.isUrgent,
+      time: notif.createdAt,
+      read: true,
+      from: notif.senderId?.role === "admin" ? "System" : notif.senderId?.name || "Unknown"
+    }));
+
+    res.json({ success: true, notifications: result });
+  } catch (err) {
+    console.error("getReadNotifications error:", err);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+// PATCH /api/student/notifications/:id/read
+export const markNotificationAsRead = async (req, res) => {
+  const studentId = req.user.id;
+  const { id } = req.params;
+
+  try {
+    await Notification.findByIdAndUpdate(id, {
+      $addToSet: { readBy: studentId },
+    });
+
+    res.json({ success: true, message: "Marked as read" });
+  } catch (err) {
+    console.error("markNotificationAsRead error:", err);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+};
+// DELETE /api/student/notifications/:id
+export const deleteNotification = async (req, res) => {
+  const studentId = req.user.id;
+  const { id } = req.params;
+
+  try {
+    await Notification.findByIdAndUpdate(id, {
+      $addToSet: { deletedBy: studentId },
+    });
+
+    res.json({ success: true, message: "Deleted notification" });
+  } catch (err) {
+    console.error("deleteNotification error:", err);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+};
