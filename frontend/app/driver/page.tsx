@@ -23,10 +23,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar } from "@/components/ui/calendar";
-import { Progress } from "@/components/ui/progress";
 import clsx from "clsx";
 import {
   Tooltip,
@@ -121,11 +119,12 @@ export default function DriverDashboard() {
     );
   }
 
-  const glowingBtn = (bg: string, shadow: string) =>
+  const glowingBtn = (bg: string, shadow: string, glowClass?: string) =>
     clsx(
       "w-12 h-12 rounded-full flex items-center justify-center text-white text-lg transition duration-300 ease-in-out hover:scale-[1.1]",
       bg,
-      `hover:shadow-[0_0_15px_${shadow}]`
+      `hover:shadow-[0_0_20px_${shadow}]`,
+      glowClass
     );
 
   return (
@@ -162,7 +161,9 @@ export default function DriverDashboard() {
                   <div>Bus ID: <Badge>{busInfo.bus_id}</Badge></div>
                   <div>Area: {busInfo.areaServed?.join(", ") || "N/A"}</div>
                   <div>Students: {busInfo.students?.length || 0}</div>
-                  <Button variant="outline" size="sm" onClick={handleLocationUpdate}>Update Location</Button>
+                  <Button variant="outline" size="sm" onClick={handleLocationUpdate}>
+                    Update Location
+                  </Button>
                 </>
               ) : (
                 <div className="text-muted-foreground">No assigned bus</div>
@@ -194,19 +195,19 @@ export default function DriverDashboard() {
             <CardContent className="flex gap-4">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button className={glowingBtn("bg-yellow-900", "#f59e0b")}>⚡</button>
+                  <button className={glowingBtn("bg-yellow-900", "#f59e0b", "emergency-glow-orange")}>⚡</button>
                 </TooltipTrigger>
                 <TooltipContent>Traffic Jam</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button className={glowingBtn("bg-red-900", "#ef4444")}>🚑</button>
+                  <button className={glowingBtn("bg-red-900", "#ef4444", "emergency-glow-red")}>🚑</button>
                 </TooltipTrigger>
                 <TooltipContent>Accident</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button className={glowingBtn("bg-blue-900", "#3b82f6")}>⏱</button>
+                  <button className={glowingBtn("bg-blue-900", "#3b82f6", "emergency-glow-blue")}>⏱</button>
                 </TooltipTrigger>
                 <TooltipContent>Bus Delayed</TooltipContent>
               </Tooltip>
@@ -237,7 +238,9 @@ export default function DriverDashboard() {
             </CardHeader>
             <CardContent>
               <Calendar mode="single" selected={new Date()} className="rounded-md border" />
-              <p className="mt-2 text-xs text-muted-foreground">Next trip on: <strong>{new Date().toDateString()}</strong></p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Next trip on: <strong>{new Date().toDateString()}</strong>
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -276,8 +279,8 @@ export default function DriverDashboard() {
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: "72%" }}
-                      transition={{ duration: 1 }}
-                      className="h-2 rounded-full bg-blue-500"
+                      transition={{ duration: 2, ease: "easeInOut" }}
+                      className="h-3 rounded-full bg-gradient-to-r from-red-500 via-yellow-400 to-blue-500 shadow-[0_0_12px_2px_rgba(59,130,246,0.7)]"
                     />
                   </CardContent>
                 </motion.div>
@@ -285,6 +288,19 @@ export default function DriverDashboard() {
             </AnimatePresence>
           </Card>
         </div>
+
+        {/* Global Styles */}
+        <style jsx global>{`
+          .emergency-glow-orange {
+            box-shadow: 0 0 10px #f59e0b, 0 0 20px #f59e0b, 0 0 30px #f59e0b;
+          }
+          .emergency-glow-red {
+            box-shadow: 0 0 10px #ef4444, 0 0 20px #ef4444, 0 0 30px #ef4444;
+          }
+          .emergency-glow-blue {
+            box-shadow: 0 0 10px #3b82f6, 0 0 20px #3b82f6, 0 0 30px #3b82f6;
+          }
+        `}</style>
       </div>
     </TooltipProvider>
   );

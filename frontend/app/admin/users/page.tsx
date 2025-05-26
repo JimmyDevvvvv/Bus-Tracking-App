@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import AssignBusDialog from '@/app/admin/users/AssignBusDialog';
+
 import {
   Table,
   TableBody,
@@ -57,6 +59,7 @@ import {
   Plus,
   Loader2,
   ArrowLeft,
+  Bus,
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -88,6 +91,8 @@ export default function UserManagement() {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false); // Loading state for delete action
+const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+const [selectedStudent, setSelectedStudent] = useState<{ _id: string; name: string } | null>(null);
 
   // Fetch users from API
   useEffect(() => {
@@ -503,6 +508,19 @@ export default function UserManagement() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
+
+                                {user.role === 'student' && (
+  <DropdownMenuItem
+    onClick={() => {
+      setSelectedStudent({ _id: user._id, name: user.name });
+      setAssignDialogOpen(true);
+    }}
+    className="cursor-pointer"
+  >
+    <Bus className="mr-2 h-4 w-4" /> Assign to Bus
+  </DropdownMenuItem>
+)}
+
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   onClick={() => router.push(`/admin/users/${user._id}`)}
@@ -556,6 +574,12 @@ export default function UserManagement() {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AssignBusDialog
+  open={assignDialogOpen}
+  onOpenChange={setAssignDialogOpen}
+  student={selectedStudent}
+/>
+
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>

@@ -149,3 +149,132 @@ export const updateLocation = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+export const updateStudentStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!["on time", "late", "absent"].includes(status)) {
+    return res.status(400).json({ success: false, message: "Invalid status value" });
+  }
+
+  try {
+    const bus = await Bus.findOne({ driver_id: req.user.id });
+    if (!bus || !bus.studentsAssigned.includes(id)) {
+      return res.status(403).json({ success: false, message: "Unauthorized access" });
+    }
+
+    const student = await User.findById(id);
+    if (!student) return res.status(404).json({ success: false, message: "Student not found" });
+
+    student.pickupStatus = status;
+    await student.save();
+
+    res.json({ success: true, message: "Status updated" });
+  } catch (err) {
+    console.error("updateStudentStatus error:", err);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// Body: { type: "crash" | "traffic" | "delay" }
+
+export const raiseDriverAlert = async (req, res) => {
+  const { type } = req.body;
+  const allowed = ["crash", "traffic", "delay"];
+  if (!allowed.includes(type)) {
+    return res.status(400).json({ success: false, message: "Invalid alert type" });
+  }
+
+  try {
+    const bus = await Bus.findOne({ driver_id: req.user.id });
+    if (!bus) return res.status(404).json({ success: false, message: "Bus not found" });
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(bus.bus_id).emit("bus:alert", { type, time: new Date() });
+    }
+
+    res.json({ success: true, message: "Alert sent" });
+  } catch (err) {
+    console.error("raiseDriverAlert error:", err);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+
+
+
+export const getTripStats = async (req, res) => {
+  try {
+    const bus = await Bus.findOne({ driver_id: req.user.id }).populate("studentsAssigned");
+
+    if (!bus) {
+      return res.status(404).json({ success: false, message: "No bus found for this driver." });
+    }
+
+    const students = bus.studentsAssigned;
+    const total = students.length;
+
+    const statusCounts = {
+      "on time": 0,
+      "late": 0,
+      "absent": 0,
+    };
+
+    students.forEach((s) => {
+      const status = s.pickupStatus || "absent";
+      if (statusCounts[status] !== undefined) {
+        statusCounts[status]++;
+      }
+    });
+
+    res.json({
+      success: true,
+      stats: {
+        totalStudents: total,
+        pickedOnTime: statusCounts["on time"],
+        late: statusCounts["late"],
+        absent: statusCounts["absent"],
+        tripDuration: "00:45", // You can later calculate dynamically
+      },
+    });
+  } catch (err) {
+    console.error("getTripStats error:", err);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+
+
+export const getStudentDetails = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const bus = await Bus.findOne({ driver_id: req.user.id });
+    if (!bus || !bus.studentsAssigned.includes(id)) {
+      return res.status(403).json({ success: false, message: "Unauthorized access to student." });
+    }
+
+    const student = await User.findById(id).select("-password");
+    if (!student) {
+      return res.status(404).json({ success: false, message: "Student not found." });
+    }
+
+    res.json({
+      success: true,
+      student: {
+        id: student._id,
+        name: student.name,
+        email: student.email,
+        phone: student.phone || "N/A",
+        guardianContact: student.guardianContact || "N/A",
+        pickupStatus: student.pickupStatus || "absent",
+        pickupHistory: student.pickupHistory || [],
+        pickupLocation: student.pickupLocation || {},
+      },
+    });
+  } catch (err) {
+    console.error("getStudentDetails error:", err);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
