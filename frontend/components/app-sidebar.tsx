@@ -13,6 +13,8 @@ import {
   History,
   LayoutDashboard,
   Shield,
+  Users,
+  LocateFixed,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { fetchWithAuth, isAuthenticated } from "@/lib/auth";
@@ -44,9 +46,7 @@ export function AppSidebar() {
       .catch(console.error);
   }, [mounted]);
 
-  // Avoid hydration errors
-  if (!mounted) return null;
-  if (!isAuthenticated()) return null;
+  if (!mounted || !isAuthenticated()) return null;
 
   const routes =
     role === "admin"
@@ -54,9 +54,17 @@ export function AppSidebar() {
           { name: "Dashboard", path: "/admin", icon: Shield },
           { name: "Reports", path: "/admin/reports", icon: Bell },
           { name: "Users", path: "/admin/users", icon: User },
-          { name: "Profile", path: "/profile", icon: User },
           { name: "Buses", path: "/admin/buses", icon: Bus },
+          { name: "Profile", path: "/profile", icon: User },
           { name: "Settings", path: "/admin/settings", icon: Settings },
+        ]
+      : role === "driver"
+      ? [
+          { name: "Dashboard", path: "/driver", icon: LayoutDashboard },
+          { name: "Students", path: "/driver/students", icon: Users },
+          { name: "Live Tracking", path: "/driver/location", icon: LocateFixed },
+          { name: "Profile", path: "/profile", icon: User },
+          { name: "Settings", path: "/settings", icon: Settings },
         ]
       : [
           { name: "Trips", path: "/trips", icon: History },
@@ -91,7 +99,7 @@ export function AppSidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-2 space-y-1">
         {routes.map((r) => {
-          const active = pathname === r.path;
+          const active = pathname.startsWith(r.path);
           return (
             <Link
               key={r.path}
