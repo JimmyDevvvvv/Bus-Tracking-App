@@ -30,6 +30,31 @@ export const assignBus = async (req, res) => {
   }
 };
 
+
+export const getLocation = async (req, res) => {
+  const { busId } = req.params;
+
+  // validate ObjectId
+  if (!mongoose.Types.ObjectId.isValid(busId)) {
+    return res.status(400).json({ success: false, error: 'Invalid busId' });
+  }
+
+  const bus = await Bus.findById(busId).select('currentLocation');
+  if (!bus) {
+    return res.status(404).json({ success: false, error: 'Bus not found' });
+  }
+
+  // if not yet set, you can default to { latitude: 0, longitude: 0 }
+  if (!bus.currentLocation) {
+    return res
+      .status(200)
+      .json({ success: true, data: { latitude: 0, longitude: 0, timestamp: null } });
+  }
+
+  res.json({ success: true, data: bus.currentLocation });
+};
+
+
 export const getRoute = async (req, res) => {
   const { busId } = req.params;
   const bus = await Bus.findById(busId).select('route.stops');
@@ -106,6 +131,42 @@ export const assignStudentsToBus = async (req, res) => {
       error: 'Failed to assign students to bus' 
     });
   }
+};
+
+
+export const updateLocation = async (req, res) => {
+  const { busId } = req.params;
+  const { latitude, longitude } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(busId)) {
+    return res.status(400).json({ success: false, error: 'Invalid busId' });
+  }
+  if (
+    typeof latitude !== 'number' ||
+    typeof longitude !== 'number'
+  ) {
+    return res
+      .status(400)
+      .json({ success: false, error: 'latitude & longitude must be numbers' });
+  }
+
+  const bus = await Bus.findByIdAndUpdate(
+    busId,
+    {
+      currentLocation: {
+        latitude,
+        longitude,
+        timestamp: new Date(),
+      },
+    },
+    { new: true }
+  ).select('currentLocation');
+
+  if (!bus) {
+    return res.status(404).json({ success: false, error: 'Bus not found' });
+  }
+
+  res.json({ success: true, data: bus.currentLocation });
 };
 
 export default assignStudentsToBus;

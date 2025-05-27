@@ -2,25 +2,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getToken, fetchWithAuth } from "@/lib/auth";
+import { fetchWithAuth, getToken } from "@/lib/auth";
 import {
   Card,
+  CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
-  CardContent,
 } from "@/components/ui/card";
-import { Bell } from "lucide-react";
-import dynamic from "next/dynamic";
-import { io } from "socket.io-client";
-import LiveBusMap from "@/components/LiveBusMap";
 import { Button } from "@/components/ui/button";
-import router from "next/router";
-
+import { Bell } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-
-const BusTracker = dynamic(() => import("@/components/BusTracker"), { ssr: false });
+import {
+  GoogleMap,
+  Marker,
+  useJsApiLoader,
+  DirectionsService,
+  DirectionsRenderer,
+} from "@react-google-maps/api";
 
 interface UserPayload {
   name?: string;
@@ -28,49 +27,39 @@ interface UserPayload {
   assignedBusId?: string;
   pickupLocation?: { latitude: number; longitude: number };
 }
-
 interface BusLocation {
   latitude: number;
   longitude: number;
 }
 
-function calculateETA(lat1: number, lon1: number, lat2: number, lon2: number): string {
-  const R = 6371e3;
-  const φ1 = (lat1 * Math.PI) / 180;
-  const φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(Δφ / 2) ** 2 +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const d = R * c;
-  const avgSpeed = (30 * 1000) / 3600;
-  const minutes = Math.ceil((d / avgSpeed) / 60);
-  return `${minutes} mins`;
-}
-
 export default function DashboardPage() {
   const [user, setUser] = useState<UserPayload>({});
   const [busLocation, setBusLocation] = useState<BusLocation | null>(null);
-  const [eta, setEta] = useState<string>("Calculating…");
   const [loading, setLoading] = useState(true);
 
-  // 1️⃣ Fetch student info
+  // store the route result
+  const [directions, setDirections] =
+    useState<google.maps.DirectionsResult | null>(null);
+
+  // load Google Maps JS API
+  const { isLoaded: mapLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
+  });
+
+  // 1️⃣ fetch user / assignedBusId & pickup
   useEffect(() => {
     const token = getToken();
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
-        setUser(u => ({ ...u, name: payload.name, role: payload.role }));
+        setUser((u) => ({ ...u, name: payload.name, role: payload.role }));
       } catch {}
     }
-
     fetchWithAuth("/auth/me")
-      .then(r => r.json())
-      .then(data => {
+      .then((r) => r.json())
+      .then((data) => {
         if (data.success && data.user) {
-          setUser(u => ({
+          setUser((u) => ({
             ...u,
             assignedBusId: data.user.assignedBusId,
             pickupLocation: data.user.pickupLocation,
@@ -81,41 +70,74 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // 2️⃣ Socket + live tracking
+  // 2️⃣ poll bus location every 20s
   useEffect(() => {
     if (!user.assignedBusId) return;
-
-    const socket = io("http://localhost:5002");
-    socket.emit("join-bus-room", { busId: user.assignedBusId });
-
-    // student does NOT emit own, only driver does that
-    socket.on("bus-location", data => {
-      if (data.latitude != null && data.longitude != null) {
-        const loc = { latitude: data.latitude, longitude: data.longitude };
-        setBusLocation(loc);
-
-        // recalc ETA if pickup known
-        if (user.pickupLocation) {
-          setEta(calculateETA(
-            loc.latitude,
-            loc.longitude,
-            user.pickupLocation.latitude,
-            user.pickupLocation.longitude
-          ));
+    let cancelled = false;
+    const fetchLoc = async () => {
+      try {
+        const res = await fetchWithAuth(
+          `/bus/${user.assignedBusId}/location`
+        );
+        const json = await res.json();
+        if (json.success && !cancelled) {
+          setBusLocation(json.data);
         }
+      } catch (err) {
+        console.error(err);
       }
-    });
+    };
+    fetchLoc();
+    const iv = setInterval(fetchLoc, 20_000);
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+    };
+  }, [user.assignedBusId]);
 
-    socket.on("connect_error", console.error);
-    return () => { socket.disconnect(); };
-  }, [user.assignedBusId, user.pickupLocation]);
+  // 3️⃣ once we have both bus & pickup, ask Google for routing
+  useEffect(() => {
+    if (
+      mapLoaded &&
+      busLocation &&
+      user.pickupLocation &&
+      !directions
+    ) {
+      const svc = new window.google.maps.DirectionsService();
+      svc.route(
+        {
+          origin: {
+            lat: busLocation.latitude,
+            lng: busLocation.longitude,
+          },
+          destination: {
+            lat: user.pickupLocation.latitude,
+            lng: user.pickupLocation.longitude,
+          },
+          travelMode: window.google.maps.TravelMode.DRIVING,
+        },
+        (result, status) => {
+          if (status === "OK" && result) {
+            setDirections(result);
+          } else {
+            console.error("Directions request failed:", status);
+          }
+        }
+      );
+    }
+  }, [
+    mapLoaded,
+    busLocation,
+    user.pickupLocation,
+    directions,
+  ]);
 
   if (loading) {
     return <div className="p-4 text-center">Loading dashboard…</div>;
   }
 
   const { name, assignedBusId, pickupLocation } = user;
-console.log("bus location:", busLocation);
+
   return (
     <div className="space-y-6">
       {/* HEADER */}
@@ -126,17 +148,56 @@ console.log("bus location:", busLocation);
         </p>
       </header>
 
-      {/* LIVE MAP via BusTracker */}
-      {assignedBusId && pickupLocation && (
-  <div className="h-80 w-full rounded-lg overflow-hidden">
-    <LiveBusMap
-      busId={assignedBusId}
-      emitLive={false}     // student only listens
-      studentPickup={pickupLocation}
-    />
-  </div>
-)}
-
+      {/* LIVE MAP + ROUTE */}
+      {assignedBusId &&
+        pickupLocation &&
+        busLocation &&
+        mapLoaded && (
+          <div className="h-80 w-full rounded-lg overflow-hidden">
+            {loadError ? (
+              <div className="p-4 text-red-500">Map failed to load</div>
+            ) : (
+              <GoogleMap
+                mapContainerStyle={{ width: "100%", height: "100%" }}
+                center={{
+                  lat: busLocation.latitude,
+                  lng: busLocation.longitude,
+                }}
+                zoom={13}
+              >
+                {/* bus marker */}
+                <Marker
+                  position={{
+                    lat: busLocation.latitude,
+                    lng: busLocation.longitude,
+                  }}
+                  label="🚌"
+                />
+                {/* pickup marker */}
+                <Marker
+                  position={{
+                    lat: pickupLocation.latitude,
+                    lng: pickupLocation.longitude,
+                  }}
+                  label="🎒"
+                />
+                {/* render the driving route */}
+                {directions && (
+                  <DirectionsRenderer
+                    options={{
+                      directions,
+                      suppressMarkers: true,
+                      polylineOptions: {
+                        strokeColor: "#3b82f6",
+                        strokeWeight: 5,
+                      },
+                    }}
+                  />
+                )}
+              </GoogleMap>
+            )}
+          </div>
+        )}
 
       {/* INFO CARDS */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -163,21 +224,13 @@ console.log("bus location:", busLocation);
                 <span>Route</span>
                 <span>{assignedBusId ? "Campus Loop" : "N/A"}</span>
               </div>
-              <div className="flex justify-between">
-                <span>ETA</span>
-                <span>
-                  {assignedBusId && pickupLocation && busLocation
-                    ? eta
-                    : "N/A"}
-                </span>
-              </div>
             </div>
           </CardContent>
-                      
-                      <Link href={`/dashboard/chat/${assignedBusId}`}>
-                          <Button>Message Driver</Button>
-                        </Link>
-                    
+          {assignedBusId && (
+            <Link href={`/dashboard/chat/${assignedBusId}`}>
+              <Button>Message Driver</Button>
+            </Link>
+          )}
         </Card>
 
         <Card>
@@ -188,17 +241,20 @@ console.log("bus location:", busLocation);
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* real ETA from Google’s response */}
             <div className="text-2xl font-bold">
-              {assignedBusId && pickupLocation && busLocation ? eta : "--:--"}
+              {directions
+                ? directions.routes[0].legs[0].duration?.text
+                : "--:--"}
             </div>
             <p className="text-sm text-muted-foreground">
-              {assignedBusId
-                ? "Live ETA updated regularly."
-                : "No upcoming arrivals"}
+              {directions
+                ? "ETA to pickup"
+                : "Calculating…"}
             </p>
           </CardContent>
         </Card>
-                
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle>Notifications</CardTitle>
@@ -212,9 +268,9 @@ console.log("bus location:", busLocation);
               <div className="space-y-1">
                 <p className="text-sm font-medium">Bus Updates</p>
                 <p className="text-sm text-muted-foreground">
-                  {assignedBusId && pickupLocation && busLocation
-                    ? `Your bus ETA: ${eta}`
-                    : "Set up your profile to get started."}
+                  {directions
+                    ? `ETA: ${directions.routes[0].legs[0].duration?.text}`
+                    : "Ready when bus is visible"}
                 </p>
               </div>
             </div>

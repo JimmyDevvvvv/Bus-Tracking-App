@@ -30,6 +30,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Calendar } from "@/components/ui/calendar";
 import LiveBusMap from "@/components/LiveBusMap";
 import clsx from "clsx";
+import { DirectionsService, DirectionsRenderer } from "@react-google-maps/api";
 import {
   Tooltip,
   TooltipContent,
@@ -88,6 +89,7 @@ export default function DriverDashboard() {
 >({});
   const [showProgress, setShowProgress] = useState(false);
   const [busLocation, setBusLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  
   const { isLoaded: mapLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
   });
@@ -98,8 +100,8 @@ export default function DriverDashboard() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [messageInput, setMessageInput] = useState("");
   const [isSending, setIsSending] = useState(false);
-
-
+  const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+  const [nextEta, setNextEta] = useState<string>("…");
   useEffect(() => {
     if (!busInfo?.bus_id) return;
     const watcher = navigator.geolocation.watchPosition(
@@ -114,6 +116,31 @@ export default function DriverDashboard() {
     );
     return () => navigator.geolocation.clearWatch(watcher);
   }, [busInfo]);
+
+
+
+
+  useEffect(() => {
+  if (!busInfo?.bus_id || !busLocation) return;
+
+  const sendLocation = async () => {
+    try {
+      await fetchWithAuth(`/bus/${busInfo.bus_id}/location`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(busLocation),
+      });
+    } catch (err) {
+      console.error('Failed to PATCH live location:', err);
+    }
+  };
+
+  // fire immediately, then every 20s
+  sendLocation();
+  const iv = setInterval(sendLocation, 20_000);
+  return () => clearInterval(iv);
+}, [busInfo?.bus_id, busLocation]);
+
 
 
   useEffect(() => {
@@ -131,6 +158,37 @@ export default function DriverDashboard() {
 
   return () => navigator.geolocation.clearWatch(watcher);
 }, [busInfo]);
+
+
+  useEffect(() => {
+  if (!mapLoaded || !busLocation || students.length === 0) return;
+
+  const picks = students
+    .filter(s => s.pickupLocation)
+    .map(s => ({
+      location: { lat: s.pickupLocation!.latitude, lng: s.pickupLocation!.longitude },
+      stopover: true as const
+    }));
+
+  const service = new window.google.maps.DirectionsService();
+  service.route(
+    {
+      origin: { lat: busLocation.latitude, lng: busLocation.longitude },
+      destination: picks[0].location,
+      waypoints: picks.slice(1),       // remaining stops
+      travelMode: window.google.maps.TravelMode.DRIVING,
+      optimizeWaypoints: true,
+    },
+    (result, status) => {
+      if (status === "OK" && result) {
+        setDirections(result);
+      } else {
+        console.error("Route request failed:", status);
+      }
+    }
+  );
+}, [mapLoaded, busLocation, students]);
+
 
 useEffect(() => {
   if (mapLoaded && students.length) {
@@ -158,6 +216,13 @@ useEffect(() => {
     });
   }
 }, [mapLoaded, students]);
+
+useEffect(() => {
+  if (!directions) return;
+  // first leg is from current busLocation → first student
+  const leg0 = directions.routes[0].legs[0];
+  setNextEta(leg0.duration?.text ?? "…");
+}, [directions]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -622,27 +687,23 @@ const emergencyCategories: Record<string, string> = {
         }}
         zoom={13}
       >
-        {/* 🚌 Bus live marker */}
-        {busLocation && (
-            <Marker
-              position={{
-                lat: Number(busLocation.latitude),
-                lng: Number(busLocation.longitude),
-              }}
-              label="🚌"
-            />
-        )}
+        {busLocation && <Marker position={{lat: busLocation.latitude, lng: busLocation.longitude}} label="🚌" />}
+        {students.map(s => geocoded[s.id] && (
+          <Marker key={s.id} position={geocoded[s.id]} label="🎒" />
+        ))}
+        
 
-        {/* 🎒 Student pickup markers */}
-        {students.map((s) =>
-          geocoded[s.id] ? (
-            <Marker
-              key={s.id}
-              position={geocoded[s.id]}
-              label="🎒"
-            />
-          ) : null
+
+         {directions && (
+          <DirectionsRenderer
+            options={{
+              directions,
+              suppressMarkers: true,       // you already have your own icons
+              polylineOptions: { strokeColor: "#4f46e5", strokeWeight: 6 }
+            }}
+          />
         )}
+        
       </GoogleMap>
     )}
   </div>
