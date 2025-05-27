@@ -1809,11 +1809,13 @@ export const assignStudentsToBus = async (req, res) => {
 
 export const sendAdminNotification = async (req, res) => {
   try {
-    const { title, message, recipientIds = [], type, isUrgent = false } = req.body;
+    const { title = "", message = "", recipientIds = [], type = "", isUrgent = false } = req.body;
 
-    if (!title || !type) {
+    if (!title.trim() || !type.trim()) {
       return res.status(400).json({ success: false, error: "Title and type are required." });
     }
+
+    const sanitizedType = type.trim().toLowerCase();
 
     let recipients = recipientIds;
 
@@ -1826,9 +1828,9 @@ export const sendAdminNotification = async (req, res) => {
     const notification = await Notification.create({
       senderId: req.user.id,
       recipientIds: recipients,
-      type,
-      title,
-      message,
+      type: sanitizedType,
+      title: title.trim(),
+      message: message.trim(),
       isUrgent,
     });
 
@@ -1838,10 +1840,10 @@ export const sendAdminNotification = async (req, res) => {
       recipients.forEach((studentId) => {
         io.to(`user:${studentId}`).emit("notification:new", {
           id: notification._id,
-          title,
-          message,
-          type,
-          isUrgent,
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          isUrgent: notification.isUrgent,
           createdAt: notification.createdAt,
         });
       });

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AssignBusDialog from '@/app/admin/users/AssignBusDialog';
+import { motion, AnimatePresence } from "framer-motion";
 
 import {
   Table,
@@ -60,6 +61,11 @@ import {
   Loader2,
   ArrowLeft,
   Bus,
+  Users,
+  Filter,
+  UserCog,
+  Shield,
+  GraduationCap,
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -90,17 +96,15 @@ export default function UserManagement() {
   // State for delete confirmation dialog
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false); // Loading state for delete action
-const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-const [selectedStudent, setSelectedStudent] = useState<{ _id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<{ _id: string; name: string } | null>(null);
 
   // Fetch users from API
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         setLoading(true);
-
-        // Remove the /api prefix since it's already included in the backend route
         const response = await fetchWithAdminAuth('/admin/users');
 
         if (!response.ok) {
@@ -110,7 +114,6 @@ const [selectedStudent, setSelectedStudent] = useState<{ _id: string; name: stri
 
         const data = await response.json();
 
-        // Check if users array exists in the response
         if (data.users && Array.isArray(data.users)) {
           setUsers(data.users);
           setFilteredUsers(data.users);
@@ -135,7 +138,6 @@ const [selectedStudent, setSelectedStudent] = useState<{ _id: string; name: stri
   useEffect(() => {
     let result = [...users];
 
-    // Apply search
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       result = result.filter(
@@ -144,20 +146,16 @@ const [selectedStudent, setSelectedStudent] = useState<{ _id: string; name: stri
       );
     }
 
-    // Apply role filter
     if (roleFilter !== 'all') {
       result = result.filter(user => user.role === roleFilter);
     }
 
-    // Apply status filter
     if (statusFilter !== 'all') {
       const isActive = statusFilter === 'active';
       result = result.filter(user => user.isActive === isActive);
     }
 
-    // Apply sorting
     result = result.sort((a, b) => {
-      // Handle potential null/undefined values if necessary for sorting fields
       const fieldA = a[sortField] ?? '';
       const fieldB = b[sortField] ?? '';
 
@@ -172,7 +170,6 @@ const [selectedStudent, setSelectedStudent] = useState<{ _id: string; name: stri
         }
       }
 
-      // For date fields
       if (sortField === 'createdAt') {
         const aDate = new Date(String(fieldA)).getTime();
         const bDate = new Date(String(fieldB)).getTime();
@@ -187,9 +184,6 @@ const [selectedStudent, setSelectedStudent] = useState<{ _id: string; name: stri
       return 0;
     });
 
-    // Log the filtered and sorted users before setting state (for debugging if needed)
-
-    // console.log('Applying filters/sort, result:', result);
     setFilteredUsers(result);
   }, [users, searchTerm, roleFilter, statusFilter, sortField, sortDirection]);
 
@@ -273,331 +267,398 @@ const [selectedStudent, setSelectedStudent] = useState<{ _id: string; name: stri
 
   // Render role badge with appropriate color
   const renderRoleBadge = (role: string) => {
-    let variant: 'default' | 'destructive' | 'secondary' | 'outline' = 'outline';
+    const roleConfig = {
+      admin: { variant: 'destructive' as const, icon: Shield, color: 'from-red-500 to-red-600' },
+      driver: { variant: 'default' as const, icon: UserCog, color: 'from-blue-500 to-blue-600' },
+      student: { variant: 'secondary' as const, icon: GraduationCap, color: 'from-green-500 to-green-600' }
+    };
 
-    switch (role) {
-      case 'admin':
-        variant = 'destructive';
-        break;
-      case 'driver':
-        variant = 'default';
-        break;
-      case 'student':
-        variant = 'secondary';
-        break;
-    }
+    const config = roleConfig[role as keyof typeof roleConfig] || roleConfig.student;
+    const IconComponent = config.icon;
 
-    return <Badge variant={variant}>{role}</Badge>;
+    return (
+      <Badge variant={config.variant} className="gap-1 capitalize">
+        <IconComponent className="w-3 h-3" />
+        {role}
+      </Badge>
+    );
   };
 
+  // Get user stats
+  const userStats = {
+    total: users.length,
+    active: users.filter(u => u.isActive).length,
+    admins: users.filter(u => u.role === 'admin').length,
+    drivers: users.filter(u => u.role === 'driver').length,
+    students: users.filter(u => u.role === 'student').length,
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-[calc(100vh-80px)] items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="flex flex-col items-center space-y-4"
+        >
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-lg font-medium text-muted-foreground">Loading Users...</p>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700">
       <Toaster position="top-right" richColors />
-      <div className="flex justify-between items-center mb-6 gap-4">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => router.push('/admin')}
-            aria-label="Go to Admin Dashboard"
+      
+      {/* Header Section */}
+      <div className="sticky top-0 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg border-b border-slate-200/50 dark:border-slate-700/50">
+        <div className="p-6">
+          <motion.div
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="flex justify-between items-center"
           >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">User Management</h1>
-            <p className="text-muted-foreground">Manage all users of the bus tracking system.</p>
-          </div>
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => router.push('/admin')}
+                className="rounded-full hover:scale-110 transition-transform"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  User Management
+                </h1>
+                <p className="text-muted-foreground mt-2">Manage all users in your system</p>
+              </div>
+            </div>
+            <Button asChild className="rounded-2xl bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all shadow-lg">
+              <Link href="/admin/users/new" className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add New User
+              </Link>
+            </Button>
+          </motion.div>
         </div>
-        <Button asChild className="gap-2">
-          <Link href="/admin/users/new">
-            <Plus className="h-4 w-4" />
-            Add New User
-          </Link>
-        </Button>
       </div>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>Filter and search users</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name or email..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="pl-8"
-              />
-            </div>
+      <div className="p-6 space-y-6">
+        {/* Stats Cards Row */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}>
+            <Card className="rounded-2xl shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-0 hover:shadow-xl transition-all">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-blue-600">{userStats.total}</div>
+                <div className="text-xs text-muted-foreground">Total Users</div>
+              </CardContent>
+            </Card>
+          </motion.div>
+          
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
+            <Card className="rounded-2xl shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-0 hover:shadow-xl transition-all">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-green-600">{userStats.active}</div>
+                <div className="text-xs text-muted-foreground">Active</div>
+              </CardContent>
+            </Card>
+          </motion.div>
 
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Filter by role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Roles</SelectLabel>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="driver">Driver</SelectItem>
-                  <SelectItem value="student">Student</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }}>
+            <Card className="rounded-2xl shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-0 hover:shadow-xl transition-all">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-red-600">{userStats.admins}</div>
+                <div className="text-xs text-muted-foreground">Admins</div>
+              </CardContent>
+            </Card>
+          </motion.div>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Status</SelectLabel>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4 }}>
+            <Card className="rounded-2xl shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-0 hover:shadow-xl transition-all">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-blue-600">{userStats.drivers}</div>
+                <div className="text-xs text-muted-foreground">Drivers</div>
+              </CardContent>
+            </Card>
+          </motion.div>
 
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearchTerm('');
-                setRoleFilter('all');
-                setStatusFilter('all');
-              }}
-              className="gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Reset
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }}>
+            <Card className="rounded-2xl shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-0 hover:shadow-xl transition-all">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-purple-600">{userStats.students}</div>
+                <div className="text-xs text-muted-foreground">Students</div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Users</CardTitle>
-          <CardDescription>
-            {loading ? 'Loading...' : `Total: ${filteredUsers.length} users`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="hidden w-[100px] sm:table-cell">
-                    <span className="sr-only">Image</span>
-                  </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort('name')}>
-                    <div className="flex items-center gap-1">
-                      Name
-                      {sortField === 'name' &&
-                        (sortDirection === 'asc' ? (
-                          <ArrowUp className="h-4 w-4" />
-                        ) : (
-                          <ArrowDown className="h-4 w-4" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="hidden md:table-cell cursor-pointer"
-                    onClick={() => handleSort('email')}
-                  >
-                    <div className="flex items-center gap-1">
-                      Email
-                      {sortField === 'email' &&
-                        (sortDirection === 'asc' ? (
-                          <ArrowUp className="h-4 w-4" />
-                        ) : (
-                          <ArrowDown className="h-4 w-4" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="hidden md:table-cell cursor-pointer"
-                    onClick={() => handleSort('role')}
-                  >
-                    <div className="flex items-center gap-1">
-                      Role
-                      {sortField === 'role' &&
-                        (sortDirection === 'asc' ? (
-                          <ArrowUp className="h-4 w-4" />
-                        ) : (
-                          <ArrowDown className="h-4 w-4" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead className="hidden md:table-cell">Status</TableHead>
-                  <TableHead
-                    className="hidden sm:table-cell cursor-pointer"
-                    onClick={() => handleSort('createdAt')}
-                  >
-                    <div className="flex items-center gap-1">
-                      Created At
-                      {sortField === 'createdAt' &&
-                        (sortDirection === 'asc' ? (
-                          <ArrowUp className="h-4 w-4" />
-                        ) : (
-                          <ArrowDown className="h-4 w-4" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[100px] text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow key="loading-row">
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      <div className="flex justify-center items-center">
-                        <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : filteredUsers.length === 0 ? (
-                  <TableRow key="empty-row">
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      No users found matching your criteria.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredUsers
-                    .filter(user => user && typeof user === 'object' && user._id)
-                    .map(user => {
-                      return (
-                        <TableRow
-                          key={user._id}
-                          className="hover:bg-muted/50 data-[state=selected]:bg-muted odd:bg-white even:bg-slate-50 dark:odd:bg-slate-950 dark:even:bg-slate-900"
-                        >
-                          <TableCell className="hidden sm:table-cell">
-                            <Avatar className="h-9 w-9">
-                              <AvatarImage src={user.profilePicture || undefined} alt={user.name} />
-                              <AvatarFallback>
-                                {user.name?.substring(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                          </TableCell>
-                          <TableCell className="font-medium">{user.name}</TableCell>
-                          <TableCell className="hidden md:table-cell">{user.email}</TableCell>
-                          <TableCell className="hidden md:table-cell">
-                            {renderRoleBadge(user.role)}
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`h-2 w-2 rounded-full ${user.isActive ? 'bg-green-500' : 'bg-gray-400'}`}
-                              ></span>
-                              <span>{user.isActive ? 'Active' : 'Inactive'}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="hidden sm:table-cell">
-                            {new Date(user.createdAt).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                  <span className="sr-only">Toggle menu</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+        {/* Filters Card */}
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 }}>
+          <Card className="rounded-3xl shadow-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-0">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-3">
+                <Filter className="h-5 w-5 text-purple-500" />
+                Filters & Search
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name or email..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="pl-10 rounded-2xl border-0 bg-slate-50 dark:bg-slate-700 focus:ring-2 focus:ring-primary"
+                  />
+                </div>
 
-                                {user.role === 'student' && (
-  <DropdownMenuItem
-    onClick={() => {
-      setSelectedStudent({ _id: user._id, name: user.name });
-      setAssignDialogOpen(true);
-    }}
-    className="cursor-pointer"
-  >
-    <Bus className="mr-2 h-4 w-4" /> Assign to Bus
-  </DropdownMenuItem>
-)}
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger className="w-full md:w-[180px] rounded-2xl border-0 bg-slate-50 dark:bg-slate-700">
+                    <SelectValue placeholder="Filter by role" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectGroup>
+                      <SelectLabel>Roles</SelectLabel>
+                      <SelectItem value="all">All Roles</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="driver">Driver</SelectItem>
+                      <SelectItem value="student">Student</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
 
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => router.push(`/admin/users/${user._id}`)}
-                                  className="cursor-pointer"
-                                >
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  <span>View Details</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => router.push(`/admin/users/${user._id}/edit`)}
-                                  className="cursor-pointer"
-                                >
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  <span>Edit User</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleToggleActive(user._id, user.isActive)}
-                                  className="cursor-pointer"
-                                >
-                                  {user.isActive ? (
-                                    <UserX className="mr-2 h-4 w-4" />
-                                  ) : (
-                                    <UserCheck className="mr-2 h-4 w-4" />
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full md:w-[180px] rounded-2xl border-0 bg-slate-50 dark:bg-slate-700">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectGroup>
+                      <SelectLabel>Status</SelectLabel>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setRoleFilter('all');
+                    setStatusFilter('all');
+                  }}
+                  className="rounded-2xl gap-2 hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Reset
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Users Table */}
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.7 }}>
+          <Card className="rounded-3xl shadow-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-0">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3">
+                <Users className="h-5 w-5 text-green-500" />
+                Users Directory
+              </CardTitle>
+              <CardDescription>
+                {`Showing ${filteredUsers.length} of ${users.length} users`}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <Table>
+                  <TableHeader className="bg-slate-50 dark:bg-slate-800">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="hidden w-[80px] sm:table-cell">Avatar</TableHead>
+                      <TableHead className="cursor-pointer font-semibold" onClick={() => handleSort('name')}>
+                        <div className="flex items-center gap-1">
+                          Name
+                          {sortField === 'name' &&
+                            (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />)}
+                        </div>
+                      </TableHead>
+                      <TableHead className="hidden md:table-cell cursor-pointer font-semibold" onClick={() => handleSort('email')}>
+                        <div className="flex items-center gap-1">
+                          Email
+                          {sortField === 'email' &&
+                            (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />)}
+                        </div>
+                      </TableHead>
+                      <TableHead className="hidden md:table-cell cursor-pointer font-semibold" onClick={() => handleSort('role')}>
+                        <div className="flex items-center gap-1">
+                          Role
+                          {sortField === 'role' &&
+                            (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />)}
+                        </div>
+                      </TableHead>
+                      <TableHead className="hidden md:table-cell font-semibold">Status</TableHead>
+                      <TableHead className="hidden sm:table-cell cursor-pointer font-semibold" onClick={() => handleSort('createdAt')}>
+                        <div className="flex items-center gap-1">
+                          Created
+                          {sortField === 'createdAt' &&
+                            (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />)}
+                        </div>
+                      </TableHead>
+                      <TableHead className="w-[100px] text-right font-semibold">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-24 text-center">
+                          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                            <Users className="h-12 w-12 opacity-50" />
+                            <p>No users found matching your criteria.</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredUsers
+                        .filter(user => user && typeof user === 'object' && user._id)
+                        .map((user, index) => (
+                          <motion.tr
+                            key={user._id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                          >
+                            <TableCell className="hidden sm:table-cell">
+                              <Avatar className="h-10 w-10 ring-2 ring-slate-200 dark:ring-slate-700">
+                                <AvatarImage src={user.profilePicture || undefined} alt={user.name} />
+                                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
+                                  {user.name?.substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                            </TableCell>
+                            <TableCell className="font-medium">{user.name}</TableCell>
+                            <TableCell className="hidden md:table-cell text-muted-foreground">{user.email}</TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              {renderRoleBadge(user.role)}
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              <div className="flex items-center gap-2">
+                                <div className={`h-2 w-2 rounded-full ${user.isActive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                                <span className={user.isActive ? 'text-green-600 font-medium' : 'text-gray-500'}>
+                                  {user.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell text-muted-foreground">
+                              {new Date(user.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button size="icon" variant="ghost" className="rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="rounded-xl">
+                                  <DropdownMenuLabel className="font-semibold">Quick Actions</DropdownMenuLabel>
+                                  
+                                  {user.role === 'student' && (
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setSelectedStudent({ _id: user._id, name: user.name });
+                                        setAssignDialogOpen(true);
+                                      }}
+                                      className="cursor-pointer gap-2"
+                                    >
+                                      <Bus className="h-4 w-4 text-blue-500" /> Assign to Bus
+                                    </DropdownMenuItem>
                                   )}
-                                  <span>{user.isActive ? 'Deactivate' : 'Activate'}</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => initiateDeleteUser(user)}
-                                  className="text-destructive focus:text-destructive cursor-pointer"
-                                >
-                                  {isDeleting && userToDelete?._id === user._id ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                  )}
-                                  <span>Delete User</span>
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => router.push(`/admin/users/${user._id}`)}
+                                    className="cursor-pointer gap-2"
+                                  >
+                                    <Eye className="h-4 w-4 text-green-500" />
+                                    View Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => router.push(`/admin/users/${user._id}/edit`)}
+                                    className="cursor-pointer gap-2"
+                                  >
+                                    <Edit className="h-4 w-4 text-blue-500" />
+                                    Edit User
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => handleToggleActive(user._id, user.isActive)}
+                                    className="cursor-pointer gap-2"
+                                  >
+                                    {user.isActive ? (
+                                      <UserX className="h-4 w-4 text-orange-500" />
+                                    ) : (
+                                      <UserCheck className="h-4 w-4 text-green-500" />
+                                    )}
+                                    {user.isActive ? 'Deactivate' : 'Activate'}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => initiateDeleteUser(user)}
+                                    className="text-red-600 focus:text-red-600 cursor-pointer gap-2"
+                                  >
+                                    {isDeleting && userToDelete?._id === user._id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
+                                    Delete User
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </motion.tr>
+                        ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Assign Bus Dialog */}
+      <AssignBusDialog
+        open={assignDialogOpen}
+        onOpenChange={setAssignDialogOpen}
+        student={selectedStudent}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-        <AssignBusDialog
-  open={assignDialogOpen}
-  onOpenChange={setAssignDialogOpen}
-  student={selectedStudent}
-/>
-
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-3xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the user
-              <span className="font-semibold">
-                {' '}
-                {userToDelete?.name} ({userToDelete?.email})
+            <AlertDialogTitle className="text-xl">Delete User</AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
+              This action cannot be undone. This will permanently delete
+              <span className="font-semibold text-red-600">
+                {' '}{userToDelete?.name} ({userToDelete?.email})
               </span>
               .
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="gap-3">
+            <AlertDialogCancel disabled={isDeleting} className="rounded-2xl">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={performDeleteUser}
               disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="rounded-2xl bg-red-600 hover:bg-red-700"
             >
               {isDeleting ? (
                 <>
