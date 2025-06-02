@@ -207,3 +207,11 @@ This project is part of BSAD 603 — Project Management at GIU. The application 
 ## 🙏 Acknowledgments
 
 We would like to express gratitude to all users who participated in surveys, offered feedback, and helped validate the system under real conditions. Special thanks to the project supervisors and teaching staff for their guidance.
+
+
+https://github.com/user-attachments/assets/3ba6756e-35aa-41b9-baf3-7d2fe7a9f792
+
+
+https://github.com/user-attachments/assets/199f3745-5b2c-4e78-bf74-b76fdba32d17
+
+
