@@ -1,0 +1,31 @@
+{
+  "type": "module",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:admin": "eslint ./frontend/app/admin",
+    "lint:admin:fix": "eslint ./frontend/app/admin --fix",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
+    "format:admin": "prettier --write \"./frontend/app/admin/**/*.{js,jsx,ts,tsx,json,css,md}\"",
+    "fix:lint": "node scripts/fix-admin-lint.js",
+    "fix:imports": "node scripts/fix-remaining-lint.js",
+    "fix:types": "node scripts/fix-any-types.js",
+    "fix:hooks": "node scripts/fix-react-hooks.js",
+    "update:docs": "node scripts/update-project-structure.js",
+    "fix:admin": "npm run fix:lint && npm run fix:imports && npm run fix:types && npm run fix:hooks && npm run lint:admin:fix && npm run update:docs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.1",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "eslint": "^9.25.1",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "prettier": "^3.5.3"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.1",
+    "glob": "^11.0.2"
+  }
+}
