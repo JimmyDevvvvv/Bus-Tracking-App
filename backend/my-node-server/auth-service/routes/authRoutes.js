@@ -1,19 +1,21 @@
-import express from "express";
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-import cors from "cors";
+import express from 'express';
+import { registerUser,upload,updateCurrentUser , getCurrentUser,loginUser, enableMFA, logoutUser } from  '../controllers/authController.js'
+import { verifyToken } from '../middleware/authMiddleware.js';
+import multer from 'multer'
+const router = express.Router();
 
-import connectDB from "./db/connect.js";
 
-dotenv.config();
-const app = express();
+router.post('/register', registerUser)
+router.post('/login',    loginUser)
+router.post('/logout',   verifyToken, logoutUser)
+router.post('/enable-mfa', verifyToken, enableMFA)
 
-app.use(cors());
-app.use(express.json());
+router.get('/me',    verifyToken, getCurrentUser)
+ router.patch(
+  '/me',
+  verifyToken,
+  upload.single('profilePicture'),
+  updateCurrentUser
+)
 
-app.use("/api/auth", authRoutes);
-
-const PORT = process.env.PORT || 4000;
-connectDB().then(() => {
-  app.listen(PORT, () => console.log(`Auth service running on port ${PORT}`));
-});
+export default router

@@ -1,5 +1,5 @@
 // controllers/authController.js
-
+ 
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import multer from 'multer'
@@ -8,7 +8,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { generateToken } from '../middleware/authMiddleware.js'
 import User from '../models/user.js'
-import Bus from '../models/Bus.js'
+
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname  = path.dirname(__filename)
