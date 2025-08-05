@@ -1,217 +1,390 @@
-# University Bus Tracking Application
+# Bus Tracking System - Microservices Architecture
 
-## 🌍 Overview
+A comprehensive bus tracking system built with a microservices architecture using Node.js, Express, MongoDB, Redis, and Docker.
 
-The **University Bus Tracking Application** is an end-to-end smart transportation solution designed to resolve long-standing issues in university and school bus systems, including delays, overcrowding, poor communication, and missed schedules. It enables live GPS tracking, dynamic ETA calculations, and direct student-driver communication while offering centralized control to administrators for route and user management.
+## 🏗️ Architecture Overview
 
-This system was developed as a semester-long project for BSAD 603 (Project Management) by a team of cybersecurity and software engineering students using Agile methodologies and user-centered design. With a heavy emphasis on real-world feedback and usage metrics, the application not only meets the minimum functional requirements but goes further in ensuring transparency, security, and user satisfaction across all roles.
+The system is divided into 8 microservices, each handling a specific domain:
 
-## 🚀 Project Motivation & Problem Statement
+### Services
 
-Universities frequently struggle to manage transportation logistics efficiently. Based on collected data:
+1. **API Gateway** (Port: 3000)
+   - Routes requests to appropriate microservices
+   - Handles authentication and authorization
+   - Rate limiting and security middleware
+   - Load balancing and service discovery
 
-- 53.1% of students reported frequent delays.
-- 53.1% cited overcrowding.
-- 12.5% reported missed classes due to poor transit reliability.
-- 46.9% requested better communication with drivers.
+2. **Auth Service** (Port: 3001)
+   - User authentication and authorization
+   - JWT token management
+   - Multi-factor authentication (MFA)
+   - Password management
 
-The current systems lack real-time data, manual coordination is slow, and reporting problems (like reckless driving or overloading) is often ignored. Our application resolves these issues through an intuitive web platform with role-based access and automation.
+3. **User Service** (Port: 3002)
+   - User profile management
+   - Role-based access control
+   - Student and driver management
+   - User location tracking
 
-## 💼 Business Case & Target Audience
+4. **Bus Service** (Port: 3003)
+   - Bus fleet management
+   - Route planning and assignment
+   - Driver and student assignments
+   - Bus status tracking
 
-### Problem Addressed:
+5. **Location Service** (Port: 3004)
+   - Real-time location tracking
+   - GPS data processing
+   - Location history and analytics
+   - WebSocket connections for live updates
 
-- Frequent Delays: Inability to track live locations.
-- Overcrowding & Miscommunication: No transparent data or alerts.
-- Missed Classes: No proximity warnings or ETA.
+6. **Chat Service** (Port: 3005)
+   - Real-time messaging
+   - Chat rooms for buses
+   - Message history and management
+   - File sharing in chats
 
-### Value Proposition:
+7. **Notification Service** (Port: 3006)
+   - Push notifications
+   - Email notifications
+   - Announcements and alerts
+   - Notification preferences
 
-- 75% of surveyed users desired real-time GPS.
-- 71.9% requested ETA notifications.
-- 96.9% demanded reporting tools.
+8. **File Service** (Port: 3007)
+   - File upload and management
+   - Image processing and thumbnails
+   - Document storage
+   - File access control
 
-### Target Users:
+## 🚀 Quick Start
 
-- Students who want reliable schedules and tracking.
-- Drivers who need simplified UIs and route intelligence.
-- Admins who manage assignments, analytics, and reports.
+### Prerequisites
 
-### Benefits:
+- Docker and Docker Compose
+- Node.js 18+ (for local development)
+- MongoDB (handled by Docker)
+- Redis (handled by Docker)
 
-- Improved academic punctuality.
-- Safer, more efficient rides.
-- Stronger trust between students and administration.
+### Environment Variables
 
-## 🌐 Live System Features
+Create a `.env` file in the root directory:
 
-### Core MVP Features:
+```env
+# Email Configuration (for notifications)
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
 
-- **GPS Tracking:** Live bus positions updated every second.
-- **ETA Estimation:** Based on dynamic traffic and route history.
-- **Arrival Alerts:** Triggered 3–5 minutes before stops.
-- **Two-Way Messaging:** Between students and assigned drivers.
-- **Admin Dashboard:** Visual route management, analytics, and complaint resolution.
-- **Student Complaints:** Categorized submissions visible to admins.
-- **Driver Tools:** Upcoming stops, emergency alerting, and trip oversight.
-- **Data Export:** Admins can extract trip data and usage metrics.
-- **Role-Based Dashboards:** Authenticated portals for all roles.
-- **Trip History:** Students can access previous ride details.
+# Frontend URL
+FRONTEND_URL=http://localhost:3000
 
-## 📊 Technologies Used
-
-- **Frontend:** Next.js (React)
-- **Backend:** Node.js, Express.js
-- **Database:** MongoDB (Cloud Hosted)
-- **Auth:** JWT-based with role validation
-- **Real-Time Comms:** Socket.IO
-- **Maps & Geolocation:** Google Maps API
-- **Deployment:** Docker (Optional), GitHub
-
-## ⚖️ Role-Specific Features
-
-### 👨‍🎓 Student Portal
-
-- View assigned bus, driver, and ETA.
-- Receive pop-up notifications for proximity or delays.
-- Submit structured complaints.
-- Chat in real-time with driver.
-- View full profile and trip history.
-
-### 🚓 Driver Dashboard
-
-- View list of enrolled students.
-- Push arrival alerts manually.
-- Access live route map with next stop indicator.
-- View delay codes and emergency flags.
-- Communicate directly with students.
-
-### 👨‍💼 Admin Interface
-
-- View/manage student-bus-driver assignments.
-- CRUD routes dynamically on a map.
-- View and export analytical data.
-- Respond to student complaints.
-- Oversee entire system from one dashboard.
-
-## ⚙️ Installation & Deployment
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/your-repo/university-bus-tracker.git
-
-# 2. Navigate to backend & install dependencies
-cd backend
-npm install
-npm run dev
-
-# 3. Navigate to frontend & install dependencies
-cd ../frontend
-npm install
-npm run dev
-
-# 4. Set environment variables (Maps API, Mongo URI, JWT Secret)
-touch .env
+# JWT Secret
+JWT_SECRET=your-super-secret-jwt-key
 ```
 
-## 🔄 Agile Development Lifecycle
+### Running the Application
 
-The project was developed over **3 major sprints**:
+1. **Start all services:**
+   ```bash
+   docker-compose up --build
+   ```
 
-### ▶️ Sprint 1: Backend Foundation
+2. **Start specific services:**
+   ```bash
+   docker-compose up api-gateway auth-service user-service
+   ```
 
-- APIs for real-time GPS data, complaints, messaging.
-- MongoDB schema design.
-- Role-based authentication (JWT).
+3. **View logs:**
+   ```bash
+   docker-compose logs -f [service-name]
+   ```
 
-### ▶️ Sprint 2: Frontend + UX
+4. **Stop all services:**
+   ```bash
+   docker-compose down
+   ```
 
-- React components for all roles.
-- Live map rendering with ETA.
-- Real-time alerts and chat system UI.
+## 📁 Project Structure
 
-### ▶️ Sprint 3: Integration & Testing
+```
+Bus-Tracking-App/
+├── backend/
+│   ├── api-gateway/          # API Gateway Service
+│   ├── auth-service/         # Authentication Service
+│   ├── user-service/         # User Management Service
+│   ├── bus-service/          # Bus Management Service
+│   ├── location-service/     # Location Tracking Service
+│   ├── chat-service/         # Chat & Messaging Service
+│   ├── notification-service/ # Notification Service
+│   └── file-service/         # File Management Service
+├── frontend/                 # React/Next.js Frontend
+├── docker-compose.yml        # Docker Compose Configuration
+└── README.md
+```
 
-- End-to-end testing of front+back.
-- Real-time Socket.IO tuning.
-- Final bug fixes, optimization, and deployment testing.
+## 🔧 Service Details
 
-## 👨‍📋 Team & Roles
+### API Gateway
+- **Port:** 3000
+- **Purpose:** Single entry point for all API requests
+- **Features:**
+  - Request routing to microservices
+  - JWT token verification
+  - Rate limiting
+  - CORS handling
+  - Load balancing
 
-| Name | Role | Contributions |
-|------|------|---------------|
-| Ahmed Hegab | Scrum Master | Sprint coordination, backend support, Agile facilitation,Communication Module,Google Maps API |
-| Mohamed Gamal (Jimmy) | Product Owner | Driver Panel, Admin Management, UI Design, Dashboard integration |
-| Maryam Kashif | Business analyst + Backend Developer | Contributed to the development of backend APIs for the Driver module and contributed to writing reports, deliverables, documentation, and project presentations |
-| Ammar Hassona | Developer | GPS logic, Google Maps API, ETA calculations |
-| Aly Mostafa | Developer | Student dashboard, profile, complaint UI |
-| Omar Badrawy | Developer | Admin dashboard, route editing, student-bus assignment |
-| Abdullah Mohamed | Developer | complaints schema, chat performance tuning |
-| Abdelrahman Ibrahim | Developer |CSV export, permission enforcement |
+### Auth Service
+- **Port:** 3001
+- **Database:** MongoDB (authdb)
+- **Features:**
+  - User registration and login
+  - JWT token generation
+  - Multi-factor authentication
+  - Password reset
+  - Session management
 
-## ⌛ Performance Metrics
+### User Service
+- **Port:** 3002
+- **Database:** MongoDB (userdb)
+- **Features:**
+  - User profile management
+  - Role-based permissions
+  - Student and driver profiles
+  - Location tracking for users
 
-| Metric | Target Goal |
-|--------|-------------|
-| GPS Latency | < 2 seconds |
-| Notification Delivery | < 5 seconds |
-| ETA Recalculation | Every 30 seconds |
-| Admin Dashboard Sync | < 1 minute |
-| Chat Round-Trip Time | < 1 second |
-| Backend Uptime | 99.9% |
-| Adoption Target | 80% of user base |
+### Bus Service
+- **Port:** 3003
+- **Database:** MongoDB (busdb)
+- **Features:**
+  - Bus fleet management
+  - Route planning
+  - Driver assignments
+  - Student assignments
+  - Bus status tracking
 
-## ⚡ Project Timeline
+### Location Service
+- **Port:** 3004
+- **Database:** MongoDB (locationdb)
+- **Features:**
+  - Real-time GPS tracking
+  - Location history
+  - Route analytics
+  - WebSocket connections
+  - Emergency alerts
 
-| Milestone | Planned | Actual |
-|-----------|---------|--------|
-| Project Initialization | 21/02/2025 | 24/02/2025 |
-| Requirements Gathering | 04/03/2025 | 06/03/2025 |
-| Backend Development | 03/04/2025 | 03/04/2025 |
-| Frontend Development | 16/04/2025 | 20/04/2025 |
-| Testing & QA | 03/05/2025 | 05/05/2025 |
+### Chat Service
+- **Port:** 3005
+- **Database:** MongoDB (chatdb)
+- **Features:**
+  - Real-time messaging
+  - Chat rooms per bus
+  - Message history
+  - File sharing
+  - Read receipts
 
-## ❓ Key Lessons & Challenges
+### Notification Service
+- **Port:** 3006
+- **Database:** MongoDB (notificationdb)
+- **Features:**
+  - Push notifications
+  - Email notifications
+  - Announcements
+  - Notification preferences
+  - Emergency broadcasts
 
-### Technical:
+### File Service
+- **Port:** 3007
+- **Database:** MongoDB (filedb)
+- **Features:**
+  - File upload/download
+  - Image processing
+  - Thumbnail generation
+  - Access control
+  - File categorization
 
-- Choosing the right GPS API required deep benchmarking.
-- Real-time messaging involved tuning WebSockets for 1s round-trip times.
-- Role-based UI/UX demanded conditional rendering and secure data access.
+## 🔌 API Endpoints
 
-### Organizational:
+### Authentication
+```
+POST /api/auth/register     # User registration
+POST /api/auth/login        # User login
+POST /api/auth/logout       # User logout
+GET  /api/auth/me          # Get current user
+POST /api/auth/mfa/enable  # Enable MFA
+POST /api/auth/mfa/disable # Disable MFA
+```
 
-- Deadline crunch due to other course deliverables.
-- Live integration under tight sprints made testing more stressful.
-- Cross-team coordination needed stronger stand-up documentation.
+### Users
+```
+GET    /api/users           # Get all users
+GET    /api/users/:id       # Get user by ID
+POST   /api/users           # Create user
+PUT    /api/users/:id       # Update user
+DELETE /api/users/:id       # Delete user
+GET    /api/students        # Get students
+GET    /api/drivers         # Get drivers
+```
 
-## 🚀 Future Improvements
+### Buses
+```
+GET    /api/buses           # Get all buses
+GET    /api/buses/:id       # Get bus by ID
+POST   /api/buses           # Create bus
+PUT    /api/buses/:id       # Update bus
+DELETE /api/buses/:id       # Delete bus
+PUT    /api/buses/:id/assign-driver    # Assign driver
+PUT    /api/buses/:id/assign-students  # Assign students
+```
 
-- **Granular Location Consent:** Enable limited-time or stop-based sharing to protect user privacy.
-- **Mobile App Version:** Flutter-based native version for students.
-- **Driver Training Module:** Interactive onboarding inside dashboard.
-- **Push Notifications:** Using Firebase or native OS channels.
-- **Trip Forecasting:** Using historical GPS to suggest optimized routes.
-- **Offline Caching:** Support for poor connectivity zones.
+### Location
+```
+POST   /api/location/update           # Update location
+GET    /api/location/bus/:busId       # Get bus location
+GET    /api/location/active-buses     # Get active buses
+GET    /api/location/stats            # Get location stats
+```
 
-## 👉 Quick Links
+### Chat
+```
+GET    /api/chat/rooms                # Get user's chat rooms
+GET    /api/chat/rooms/:busId         # Get/create chat room
+GET    /api/chat/rooms/:roomId/messages # Get messages
+POST   /api/chat/messages             # Send message
+PUT    /api/chat/rooms/:roomId/read   # Mark as read
+```
 
-- 📊 [User Survey Data](https://docs.google.com/spreadsheets/d/1UHge81XDs9RyOY2iUrLziqTCGUBtrn6v0CaNlR7lDxQ)
-- 🔎 API Tracker *(coming soon)*
-- 🔹 Project Gantt Chart *(coming soon)*
+### Notifications
+```
+POST   /api/notifications             # Create notification
+GET    /api/notifications             # Get user notifications
+PUT    /api/notifications/:id/read   # Mark as read
+DELETE /api/notifications/:id         # Delete notification
+```
 
-## ✍️ License & Disclaimer
+### Files
+```
+POST   /api/files/upload              # Upload file
+GET    /api/files                     # Get user's files
+GET    /api/files/:id                 # Get file by ID
+PUT    /api/files/:id                 # Update file
+DELETE /api/files/:id                 # Delete file
+GET    /api/files/:id/download        # Download file
+```
 
-This project is part of BSAD 603 — Project Management at GIU. The application is developed for academic, demonstrative, and non-commercial purposes. All rights reserved by the team members.
+## 🔐 Security Features
 
-## 🙏 Acknowledgments
+- **JWT Authentication:** Secure token-based authentication
+- **Rate Limiting:** Prevents abuse and DDoS attacks
+- **CORS Protection:** Cross-origin request handling
+- **Helmet Security:** HTTP headers security
+- **Input Validation:** Request data validation
+- **Role-based Access:** Granular permissions
 
-We would like to express gratitude to all users who participated in surveys, offered feedback, and helped validate the system under real conditions. Special thanks to the project supervisors and teaching staff for their guidance.
+## 📊 Real-time Features
 
+- **WebSocket Connections:** Real-time updates
+- **Live Location Tracking:** GPS updates every few seconds
+- **Instant Messaging:** Real-time chat functionality
+- **Push Notifications:** Immediate alerts and announcements
+- **Live Bus Status:** Real-time bus location and status
 
-https://github.com/user-attachments/assets/3ba6756e-35aa-41b9-baf3-7d2fe7a9f792
+## 🗄️ Database Design
 
+Each service has its own MongoDB database:
 
-https://github.com/user-attachments/assets/199f3745-5b2c-4e78-bf74-b76fdba32d17
+- **authdb:** Authentication and user sessions
+- **userdb:** User profiles and management
+- **busdb:** Bus fleet and route data
+- **locationdb:** GPS and tracking data
+- **chatdb:** Messages and chat rooms
+- **notificationdb:** Notifications and announcements
+- **filedb:** File metadata and storage info
+
+## 🔄 Message Broker
+
+Redis is used as a message broker for:
+- Inter-service communication
+- Caching frequently accessed data
+- Session storage
+- Real-time event distribution
+
+## 🐳 Docker Configuration
+
+All services are containerized with:
+- **Base Image:** Node.js 18 Alpine
+- **Port Mapping:** Each service exposes its port
+- **Volume Mounting:** For persistent data
+- **Environment Variables:** Service-specific configuration
+- **Health Checks:** Service availability monitoring
+
+## 🚀 Deployment
+
+### Development
+```bash
+docker-compose up --build
+```
+
+### Production
+```bash
+# Set environment variables
+export NODE_ENV=production
+
+# Start services
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+## 📈 Monitoring and Logging
+
+- **Health Checks:** Each service has `/health` endpoint
+- **Logging:** Structured logging with timestamps
+- **Error Handling:** Comprehensive error management
+- **Performance:** Request/response time monitoring
+
+## 🔧 Development
+
+### Adding a New Service
+
+1. Create service directory in `backend/`
+2. Add service to `docker-compose.yml`
+3. Create Dockerfile for the service
+4. Add service routes to API Gateway
+5. Update documentation
+
+### Local Development
+
+```bash
+# Install dependencies for a service
+cd backend/[service-name]
+npm install
+
+# Run service locally
+npm run dev
+
+# Run with hot reload
+npm run dev
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the ISC License.
+
+## 🆘 Support
+
+For support and questions:
+- Create an issue in the repository
+- Check the documentation
+- Review the API endpoints
+
+---
+
+**Built with ❤️ using Node.js, Express, MongoDB, Redis, and Docker**
 
 
